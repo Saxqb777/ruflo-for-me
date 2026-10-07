@@ -1,7 +1,8 @@
-// The workshop. Picks queued jobs, prepares a repo or worktree, runs one headless Claude Code session per
-// turn with the Ruflo pipeline prompt, the Binas hooks and a spend cap, parks on a binas-ask block, resumes
-// with the owner's answer, ships when a binas-done block lands. Fuel is the machine's Claude login: any
-// API key is stripped from the child environment unless the job says billing: "api".
+// The workshop. Picks queued jobs (local, then the cloud board), prepares a repo or worktree, runs one headless
+// Claude Code session per turn with the Ruflo pipeline prompt, the Binas hooks and a spend cap, parks on a
+// binas-ask block, resumes with the owner's answer or the next message, ships, deploys a preview, and reports
+// back to the board. Fuel is the machine's Claude login: any API key is stripped from the child environment
+// unless the job says billing: "api". Tokens for push and deploy stay on the host; sessions never see them.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -10,11 +11,14 @@ import { fileURLToPath } from 'node:url';
 import { listJobs, loadJob, saveJob, note, jobAgentId, jobAgentName } from './jobs.mjs';
 import { coordinatorPrompt, newProjectClaudeMd, parseFence, ASK_FENCE, DONE_FENCE } from './prompt.mjs';
 import { shipJob } from './ship.mjs';
+import { previewDeploy } from './preview.mjs';
+import { jobFromWork } from './board.mjs';
 import { appendEvent } from '../log.mjs';
 
 export const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const DEFAULT_ALLOWED = ['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Glob', 'Grep', 'Agent', 'Task', 'TodoWrite', 'WebFetch', 'WebSearch',
   'Bash(npm *)', 'Bash(npx *)', 'Bash(pnpm *)', 'Bash(node *)', 'Bash(git add *)', 'Bash(git commit *)', 'Bash(git status*)', 'Bash(git diff*)', 'Bash(git log*)', 'Bash(git branch*)', 'Bash(ls *)', 'Bash(cat *)', 'Bash(mkdir *)', 'Bash(cp *)', 'Bash(mv *)'];
+const HOST_ONLY = ['ANTHROPIC_API_KEY', 'VERCEL_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN', 'NEON_API_KEY', 'DATABASE_URL', 'BINAS_SESSION_SECRET'];
 const short = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const git = (args, cwd) => { const r = spawnSync('git', args, { cwd, encoding: 'utf8' }); return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() }; };
 
@@ -26,15 +30,18 @@ export function composeCommand(job, prompt, { claude = { bin: 'claude', prefixAr
   if (job.autonomy === 'full') args.push('--dangerously-skip-permissions'); else args.push('--permission-mode', 'acceptEdits', '--allowedTools', DEFAULT_ALLOWED.join(','));
   if (sandbox === 'docker') {
     const envFlags = ['BINAS_LOG_ROOT', 'BINAS_JOB', 'BINAS_JOB_NAME', 'BINAS_FLOOR', 'BINAS_INGEST_URL', 'BINAS_KEY'].flatMap((k) => ['-e', k]);
-    return { cmd: 'docker', args: ['run', '--rm', '-i', '-v', `${job.workdir}:/work`, '-v', `${join(homedir(), '.claude')}:/root/.claude`, '-v', `${PLUGIN_ROOT}:/binas:ro`, '-w', '/work', ...envFlags, image, 'claude', ...args, '--plugin-dir', '/binas'] };
+    return { cmd: 'docker', args: ['run', '--rm', '-i', '--network', 'bridge', '-v', `${job.workdir}:/work`, '-v', `${join(homedir(), '.claude')}:/root/.claude`, '-v', `${PLUGIN_ROOT}:/binas:ro`, '-w', '/work', ...envFlags, image, 'claude', ...args, '--plugin-dir', '/binas'] };
   }
   return { cmd: claude.bin, args: [...(claude.prefixArgs || []), ...args, '--plugin-dir', PLUGIN_ROOT] };
 }
 
-export function childEnv(job, base, { root, floor }) {
+/** The session's environment: host-only tokens removed, the floor's log and job identity added. */
+export function childEnv(job, base, { root, floor, board = null }) {
   const env = { ...base };
-  if (job.billing !== 'api') delete env.ANTHROPIC_API_KEY;
-  env.BINAS_LOG_ROOT = root; env.BINAS_JOB = job.id; env.BINAS_JOB_NAME = jobAgentName(job); if (floor) env.BINAS_FLOOR = floor;
+  for (const k of HOST_ONLY) if (!(k === 'ANTHROPIC_API_KEY' && job.billing === 'api')) delete env[k];
+  env.BINAS_LOG_ROOT = root; env.BINAS_JOB = job.cloud ? job.cloud.projectId : job.id; env.BINAS_JOB_NAME = jobAgentName(job);
+  const fl = job.cloud ? job.cloud.floor : floor; if (fl) env.BINAS_FLOOR = fl;
+  if (board) { env.BINAS_INGEST_URL = board.ingestUrl; env.BINAS_KEY = board.key; }
   delete env.CLAUDE_PROJECT_DIR;
   return env;
 }
@@ -46,7 +53,7 @@ export function prepareWorkdir(job, root) {
     if (!existsSync(join(p, '.git'))) {
       if (!git(['init', '-q'], p).ok) throw new Error('git init failed');
       git(['symbolic-ref', 'HEAD', 'refs/heads/main'], p);
-      writeFileSync(join(p, 'CLAUDE.md'), newProjectClaudeMd(job)); writeFileSync(join(p, 'README.md'), `# ${job.title}\n\n${job.brief}\n`); writeFileSync(join(p, '.gitignore'), 'node_modules/\n.env\n.env.*\ndist/\n.claude-flow/\n');
+      writeFileSync(join(p, 'CLAUDE.md'), newProjectClaudeMd(job)); writeFileSync(join(p, 'README.md'), `# ${job.title}\n\n${job.brief}\n`); writeFileSync(join(p, '.gitignore'), 'node_modules/\n.env\n.env.*\ndist/\n.claude-flow/\n.vercel/\n');
       git(['add', '-A'], p); git(['-c', 'user.name=Binas', '-c', 'user.email=binas@local', 'commit', '-q', '-m', 'binas: open the project'], p);
     }
     const b = git(['rev-parse', '--verify', '--quiet', job.branch], p).ok ? git(['checkout', '-q', job.branch], p) : git(['checkout', '-q', '-b', job.branch], p);
@@ -82,48 +89,73 @@ export function runSession({ cmd, args, cwd, env, onLine = () => {}, timeoutMs =
   });
 }
 
-export function createRunner({ root, claude, sandbox = 'none', image, floor = null, env = process.env, log = () => {}, ship = shipJob, run = runSession } = {}) {
+export function createRunner({ root, claude, sandbox = 'none', image, floor = null, env = process.env, log = () => {}, ship = shipJob, run = runSession, board = null, preview = previewDeploy } = {}) {
   root = resolve(root || process.cwd());
-  const ev = (job, kind, extra = {}) => appendEvent(root, { t: Date.now(), kind, agent: jobAgentId(job), role: 'coordinator', name: jobAgentName(job), source: 'factory', ...extra });
+  const ev = (job, kind, extra = {}) => { const e = { t: Date.now(), kind, agent: jobAgentId(job), role: 'coordinator', name: jobAgentName(job), source: 'factory', ...extra }; appendEvent(root, e); if (board) board.sendEvents([e], job.cloud ? job.cloud.floor : floor); };
   const say = (job, text) => { note(job, text); log(`[${job.id}] ${text}`); };
+  const sync = async (job, patch) => { if (!job.cloud || !board) return; try { await board.update(job.cloud.turnId, { sessionId: job.sessionId || undefined, costUsd: job.costUsd, ...patch }); } catch (e) { say(job, 'cloud board not updated: ' + e.message); } };
+  const fail = async (job, error) => { job.state = 'failed'; job.error = short(error, 400); job.finishedAt = Date.now(); saveJob(root, job); ev(job, 'fail', { paper: job.id, text: job.error }); say(job, 'failed: ' + job.error); await sync(job, { status: 'failed', error: job.error }); return job; };
 
-  async function turn(job, { resume = false, answer = null } = {}) {
-    const prompt = coordinatorPrompt(job, { resumeAnswer: answer });
-    const { cmd, args } = composeCommand(job, prompt, { claude, sandbox, image, resume });
+  async function session(job, opts) {
+    const prompt = coordinatorPrompt(job, opts);
+    const { cmd, args } = composeCommand(job, prompt, { claude, sandbox, image, resume: opts.resume });
+    return run({ cmd, args, cwd: job.workdir, env: childEnv(job, env, { root, floor, board }), onLine: (m) => { if (m.type === 'assistant' && m.message && Array.isArray(m.message.content)) { const t = m.message.content.find((c) => c.type === 'text'); if (t) { say(job, short(t.text, 160)); sync(job, { status: 'progress', progress: short(t.text, 200) }); } } } });
+  }
+
+  async function turn(job, { resume = false, answer = null, followUp = null } = {}) {
     job.state = 'running'; job.startedAt = job.startedAt || Date.now(); saveJob(root, job);
-    const out = await run({ cmd, args, cwd: job.workdir, env: childEnv(job, env, { root, floor }), onLine: (m) => { if (m.type === 'assistant' && m.message && Array.isArray(m.message.content)) { const t = m.message.content.find((c) => c.type === 'text'); if (t) say(job, short(t.text, 160)); } } });
+    await sync(job, { status: 'running', repo: job.links.remote || undefined, branch: job.branch });
+    let out = await session(job, { resume, resumeAnswer: answer, followUp });
+    if (out.isError && resume && /session|resume|conversation/i.test(out.stderr + ' ' + out.result)) { say(job, 'could not resume the old session; starting fresh with the context'); job.sessionId = null; out = await session(job, { resume: false, resumeAnswer: answer, followUp: followUp || job.brief }); }
     job.sessionId = out.sessionId || job.sessionId; job.costUsd = Number((job.costUsd + out.cost).toFixed(4)); job.turns += out.turns; job.lastResult = short(out.result, 4000);
-    if (out.isError) { job.state = 'failed'; job.error = short(out.stderr || out.result || `exit ${out.exitCode}`, 400); job.finishedAt = Date.now(); saveJob(root, job); ev(job, 'fail', { paper: job.id, text: job.error }); say(job, 'failed: ' + job.error); return job; }
+    if (out.isError) return fail(job, out.stderr || out.result || `exit ${out.exitCode}`);
     const ask = parseFence(out.result, ASK_FENCE);
-    if (ask) { job.state = 'blocked'; job.question = { text: short(ask.question || ask.raw || 'needs a decision', 400), options: Array.isArray(ask.options) ? ask.options.slice(0, 6).map((o) => short(o, 80)) : [], context: short(ask.context, 300), askedAt: Date.now() }; saveJob(root, job); ev(job, 'block', { text: job.question.text, needs: job.question.options.join(' / ') }); say(job, 'needs you: ' + job.question.text); return job; }
+    if (ask) {
+      job.state = 'blocked'; job.question = { text: short(ask.question || ask.raw || 'needs a decision', 400), options: Array.isArray(ask.options) ? ask.options.slice(0, 6).map((o) => short(o, 80)) : [], context: short(ask.context, 300), askedAt: Date.now() }; saveJob(root, job);
+      ev(job, 'block', { text: job.question.text, needs: job.question.options.join(' / ') }); say(job, 'needs you: ' + job.question.text);
+      await sync(job, { status: 'blocked', question: job.question }); return job;
+    }
     const done = parseFence(out.result, DONE_FENCE) || { summary: short(out.result, 300), notes: 'the session ended without a binas-done block' };
     job.summary = done; job.state = 'done'; job.finishedAt = Date.now(); saveJob(root, job); ev(job, 'done', { paper: job.id, text: short(done.summary, 90) });
-    const shipped = ship(job); job.links = { ...job.links, ...shipped.links }; job.shipMode = shipped.mode; shipped.notes.forEach((n) => say(job, n)); job.state = 'shipped'; saveJob(root, job);
-    ev(job, 'ship', { paper: job.id, text: shipped.links.pr || shipped.links.remote ? `${shipped.links.pr || shipped.links.remote}` : `branch ${job.branch}` });
+    const shipped = ship(job, { env }); job.links = { ...job.links, ...shipped.links }; job.shipMode = shipped.mode; shipped.notes.forEach((n) => say(job, n));
+    const pv = preview(job, { env }); if (pv.url) job.links.preview = pv.url; pv.notes.forEach((n) => say(job, n));
+    job.state = 'shipped'; saveJob(root, job);
+    ev(job, 'ship', { paper: job.id, text: job.links.preview || shipped.links.pr || shipped.links.remote || `branch ${job.branch}` });
+    await sync(job, { status: 'done', report: done, links: job.links, repo: job.links.remote || undefined });
     return job;
   }
 
   async function runJob(job) {
     try { job.workdir = prepareWorkdir(job, root); saveJob(root, job); }
-    catch (e) { job.state = 'failed'; job.error = short(e.message, 300); saveJob(root, job); ev(job, 'fail', { paper: job.id, text: job.error }); say(job, 'failed: ' + job.error); return job; }
-    ev(job, 'join'); ev(job, 'arrive', { paper: job.id, to: jobAgentId(job), text: job.title }); ev(job, 'start', { paper: job.id, text: 'reading the brief' });
+    catch (e) { return fail(job, e.message); }
+    const followUp = job.cloud && job.cloud.followUp && job.sessionId ? job.brief : null;
+    ev(job, 'join'); ev(job, 'arrive', { paper: job.id, to: jobAgentId(job), text: followUp ? short(job.brief, 80) : job.title }); ev(job, 'start', { paper: job.id, text: followUp ? 'reading your message' : 'reading the brief' });
     say(job, `started in ${job.workdir} on ${job.branch}`);
-    return turn(job);
+    return turn(job, followUp ? { resume: true, followUp } : {});
   }
   async function resumeJob(job) {
+    if (!job.workdir) { try { job.workdir = prepareWorkdir(job, root); saveJob(root, job); } catch (e) { return fail(job, e.message); } }
     const last = job.answers[job.answers.length - 1];
+    if (job.cloud) ev(job, 'join');
     ev(job, 'unblock', { text: short(last ? last.answer : 'yes', 120) }); ev(job, 'start', { paper: job.id, text: 'continuing with your answer' });
     return turn(job, { resume: true, answer: last });
   }
+  /** Pull the next cloud turn that is not on file yet and save it as a local job. */
+  async function pullCloud() {
+    if (!board) return null;
+    for (const w of await board.next()) { const id = 'turn_' + w.turn.id; if (loadJob(root, id)) continue; const job = saveJob(root, jobFromWork(w, root)); say(job, `pulled from the cloud board (floor ${job.cloud.floor}, turn ${w.turn.n})`); return job; }
+    return null;
+  }
 
-  /** One pass: resume an answered job, else start the oldest queued one. Returns the job it worked on, or null. */
+  /** One pass: resume an answered job, else start the oldest queued one, else pull one from the cloud. */
   async function tick() {
     const jobs = listJobs(root);
     const answered = jobs.find((j) => j.state === 'answered'); if (answered) return resumeJob(loadJob(root, answered.id));
     const queued = jobs.find((j) => j.state === 'queued'); if (queued) return runJob(loadJob(root, queued.id));
+    const pulled = await pullCloud(); if (pulled) return pulled.state === 'answered' ? resumeJob(pulled) : runJob(pulled);
     return null;
   }
   let timer = null, busy = false;
   function start(pollMs = 3000) { const loop = async () => { if (busy) return; busy = true; try { await tick(); } catch (e) { log('runner error: ' + e.message); } finally { busy = false; } }; loop(); timer = setInterval(loop, pollMs); return () => clearInterval(timer); }
-  return { tick, runJob, resumeJob, start, root };
+  return { tick, runJob, resumeJob, pullCloud, start, root };
 }

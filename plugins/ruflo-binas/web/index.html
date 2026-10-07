@@ -59,6 +59,32 @@ button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(
 .jmeta{font-size:11px;color:var(--ink-3)}.mono{font-family:var(--mono)}.jsum{font-size:12px}.jerr{font-size:12px;color:var(--flare-text)}.jlinks{font-size:12px}.jlinks a{color:var(--blue-text)}
 .jq{border-top:1px solid var(--rule);padding-top:6px;display:flex;flex-direction:column;gap:6px}.jqt{font-size:13px;color:var(--flare-text)}.jopts,.yes-opts{display:flex;flex-wrap:wrap;gap:4px}.yes-opts{grid-column:1/-1;margin-top:4px}
 .jans{display:flex;gap:4px}.jans input{flex:1;min-width:0;font:12px var(--mono);padding:4px 8px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);border-radius:0}
+.factory{max-height:56vh;overflow:auto}
+.sub{margin:8px 0 4px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.login{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}.login input{font:12.5px var(--mono);padding:6px 8px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);border-radius:0;min-width:0;width:100%}
+button.quiet{border-color:var(--rule);color:var(--ink-2)}button.quiet:hover{background:var(--ink-2);color:var(--paper);border-color:var(--ink-2)}
+button.tiny{padding:1px 6px;font-size:9px;border-width:1px}
+.floorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:6px}
+.floorcard{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-transform:none;letter-spacing:0;font-weight:500;padding:6px 8px;text-align:left;position:relative}
+.floorcard .fname{font-weight:700;font-size:13px}.floorcard .fmeta,.floorcard .fuse{font-size:10.5px;color:var(--ink-2)}.floorcard:hover .fmeta,.floorcard:hover .fuse,.floorcard.on .fmeta,.floorcard.on .fuse{color:inherit}
+.floorcard.live::before{content:'';position:absolute;right:6px;top:6px;width:8px;height:8px;background:var(--blue)}.floorcard.on.live::before{background:var(--paper)}
+.floorcard .fbadge{font-size:10px;color:var(--flare-text);font-weight:700}.floorcard.on .fbadge{color:var(--paper)}
+.trayrow{border:2px solid var(--flare);background:var(--sheet);padding:6px 8px;margin-bottom:6px;display:flex;flex-direction:column;gap:3px}.trayrow .who{font-size:11px;color:var(--ink-2)}.trayrow .txt{font-size:12.5px}.trayrow .meta{font-size:10.5px;color:var(--ink-3)}.trayrow .acts{display:flex;gap:4px;margin-top:3px}
+.projrow{display:grid;grid-template-columns:1fr auto;gap:1px 8px;width:100%;text-align:left;text-transform:none;letter-spacing:0;font-weight:500;padding:6px 8px;margin-bottom:4px;align-items:baseline}
+.projrow .ptitle{font-weight:700;font-size:13px}.projrow .pstate{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}.projrow .pmeta{font-size:10.5px;color:var(--ink-3)}.projrow .plast{grid-column:1/-1;font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.projrow:hover .pstate,.projrow:hover .pmeta,.projrow:hover .plast,.projrow.on .pstate,.projrow.on .pmeta,.projrow.on .plast{color:inherit}
+.projrow.st-blocked{border-color:var(--flare)}.projrow.st-running{border-color:var(--blue)}.projrow.st-approval{border-style:dashed}
+.projects .none{color:var(--ink-3);font-size:12px;margin-bottom:6px}
+.thread{display:flex;flex-direction:column;gap:6px;border-top:2px solid var(--ink);padding-top:8px;margin-top:8px}
+.thead{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:baseline}.thead .ttitle{font-weight:800;font-size:15px;font-stretch:110%}.thead .tstate{font-size:10.5px;color:var(--ink-2);grid-column:1}.thead .tlinks{grid-column:1;font-size:12px}.thead .back{grid-column:2;grid-row:1/4;align-self:start}
+.tlinks a{color:var(--blue-text)}
+.msgs{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto;padding-right:2px}
+.msg{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 8px;border-left:3px solid var(--rule);background:var(--sheet)}
+.msg.binas{border-left-color:var(--blue)}.msg.k-ask{border-left-color:var(--flare)}.msg.k-report{border-left-color:var(--green)}.msg.waiting{border-left-style:dashed}
+.msg .who{font-size:10.5px;color:var(--ink-2)}.msg .at{font-size:10.5px;color:var(--ink-3)}.msg .txt{grid-column:1/-1;font-size:12.5px;white-space:pre-wrap}.msg .note{grid-column:1/-1;font-size:11.5px;color:var(--ink-2);white-space:pre-wrap}.msg .tstatus{grid-column:1/-1;font-size:10.5px;color:var(--ink-3)}
+.msg .changes{grid-column:1/-1;margin:2px 0 0;padding-left:16px;font-size:12px}.msg .tlinks{grid-column:1/-1;font-size:12px}
+.composer{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:stretch}.composer textarea{font:12.5px var(--display);padding:6px 8px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);border-radius:0;resize:vertical;min-width:0}
+.jobrow.two{grid-template-columns:1fr auto}
 .panel section{padding:10px 12px;border-bottom:1px solid var(--rule);min-width:0}.panel section:last-child{border-bottom:0;min-height:0;overflow:auto}
 .panel h2{margin:0 0 6px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:600;display:flex;justify-content:space-between}
 .board{background:#101016;padding:8px;display:flex;flex-direction:column;gap:3px;border:2px solid #000}
@@ -84,7 +110,7 @@ button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><span class="wordmark">BINAS</span><span class="eyebrow">Floor A-01 · Binas Works · <span id="srcName">—</span> · <span id="info">loading</span></span></div>
+    <div class="brand"><span class="wordmark">BINAS</span><span class="eyebrow">Floor <span id="floorName">A-01</span> · Binas Works · <span id="srcName">—</span> · <span id="info">loading</span></span></div>
     <div class="counters">
       <div><span class="eyebrow">In</span><div class="flaps" data-flaps="cIn" data-n="2"></div></div>
       <div><span class="eyebrow">On floor</span><div class="flaps" data-flaps="cFloor" data-n="2"></div></div>
@@ -105,13 +131,25 @@ button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(
     <aside class="panel">
       <section><h2><span>Departures</span><span>the feed, newest first</span></h2><div class="board" id="board" aria-live="off"></div></section>
       <section id="factory" class="factory">
-        <h2><span>Factory</span><span id="jobStatus">the workshop builds what you describe</span></h2>
+        <h2><span id="factoryTitle">Factory</span><span><span id="jobStatus">the workshop builds what you describe</span> <button type="button" id="signOut" class="tiny" hidden>Sign out</button></span></h2>
         <form id="jobForm" class="jobform">
           <input name="title" type="text" placeholder="What are we building? (short title)" required maxlength="80" aria-label="Job title">
           <textarea name="brief" placeholder="Describe it like you would to a colleague: what it does, who it is for, what done looks like." required rows="3" maxlength="8000" aria-label="Brief"></textarea>
           <div class="jobrow"><input name="project" type="text" placeholder="existing project path (empty = new project)" aria-label="Project path"><select name="ship" aria-label="Ship as"><option value="pr">ship: pull request</option><option value="branch">ship: branch</option><option value="none">ship: keep local</option></select><input name="budget" type="number" min="0.5" max="200" step="0.5" value="5" aria-label="Spend cap in dollars" title="spend cap per turn, dollars"><button type="submit">Queue job</button></div>
         </form>
         <div id="jobList" class="cards"></div>
+        <div id="showroom" hidden>
+          <form id="loginForm" class="login" hidden><input name="username" type="text" placeholder="username" autocomplete="username" required aria-label="Username"><input name="password" type="password" placeholder="password" autocomplete="current-password" required aria-label="Password"><button type="submit">Sign in</button></form>
+          <div id="building" class="building" hidden></div>
+          <div id="tray" class="tray" hidden></div>
+          <div id="projects" class="projects" hidden></div>
+          <form id="projectForm" class="jobform" hidden>
+            <input name="title" type="text" placeholder="What are we building? (short title)" required maxlength="80" aria-label="Project title">
+            <textarea name="brief" placeholder="Describe it like you would to a colleague: what it does, who it is for, what done looks like. You keep talking to it after." required rows="3" maxlength="8000" aria-label="Brief"></textarea>
+            <div class="jobrow two"><select name="kind" aria-label="Kind"><option value="web">a site or web app</option><option value="service">a service or API</option><option value="cli">a command-line tool</option><option value="other">something else</option></select><button type="submit">Open project</button></div>
+          </form>
+          <div id="thread" class="thread" hidden></div>
+        </div>
       </section>
       <section><h2>Waiting for a yes</h2><div id="yes"><div class="none">none</div></div></section>
       <section id="who"><h2>Who</h2>

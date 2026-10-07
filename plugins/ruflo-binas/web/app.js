@@ -3,6 +3,7 @@ import { createEngine } from './engine.js';
 import { createScene } from './scene.js';
 import { createFlaps, setFlapText, flapAdvance, createAudio } from './board.js';
 import { createJobs } from './jobs.js';
+import { createShowroom } from './showroom.js';
 
 const $ = (id) => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,15 +36,19 @@ const keyGet = () => { try { return localStorage.getItem('binas.key') || ''; } c
 const keySet = (v) => { try { localStorage.setItem('binas.key', v); } catch { /* per-viewer convenience only */ } };
 const showKey = (on) => { $('keyForm').hidden = !on; };
 /* Cloud: the Vercel functions in api/ backed by Neon. Polls a cursor; the key is kept in this browser only. */
-function loadCloud() {
-  resetEngine('CLOUD', { shift: 'CLOUD', date: new Date().toISOString().slice(0, 10), source: 'CLOUD · NEON' });
-  T.mode = 'live'; T.live = true; T.loop = false; T.playing = true; $('live').hidden = true; $('srcName').textContent = 'CLOUD'; cloudCursor = 0;
-  const floor = new URLSearchParams(location.search).get('floor') || 'default';
+const cloudMode = !isLoop && location.protocol !== 'file:';
+let cloudFloor = new URLSearchParams(location.search).get('floor') || 'default';
+function loadCloud(floor = cloudFloor) {
+  cloudFloor = floor;
+  resetEngine('CLOUD', { shift: 'CLOUD', date: new Date().toISOString().slice(0, 10), source: 'CLOUD · NEON', title: 'BINAS WORKS · ' + floor.toUpperCase() });
+  T.mode = 'live'; T.live = true; T.loop = false; T.playing = true; $('live').hidden = true; $('srcName').textContent = 'CLOUD'; cloudCursor = 0; $('floorName').textContent = floor === 'default' ? 'A-01' : floor.toUpperCase();
   const poll = async () => {
-    const key = keyGet(); if (!key) { showKey(true); setInfo('enter the floor key to follow the live feed · demo needs no key'); return; }
+    if (floor !== cloudFloor) return;
+    const key = keyGet(); const signedIn = cloudMode && factory.user && factory.user();
+    if (!key && !signedIn) { showKey(!cloudMode); setInfo(cloudMode ? 'sign in below to follow the live feed · the demo needs no sign-in' : 'enter the floor key to follow the live feed'); return; }
     try {
-      const r = await fetch(`/api/events?floor=${encodeURIComponent(floor)}&after=${cloudCursor}&limit=2000`, { headers: { 'x-binas-key': key }, cache: 'no-store' });
-      if (r.status === 401) { showKey(true); setInfo('that floor key was refused'); return; }
+      const r = await fetch(`/api/events?floor=${encodeURIComponent(floor)}&after=${cloudCursor}&limit=2000`, { headers: key ? { 'x-binas-key': key } : {}, cache: 'no-store' });
+      if (r.status === 401) { if (signedIn) { setInfo('this floor is not yours to watch'); return; } showKey(true); setInfo(key ? 'that floor key was refused' : 'sign in, or enter a floor key'); return; }
       if (r.status === 503) { setInfo('cloud: no database connected yet · the demo works'); return; }
       if (!r.ok) { setInfo(`cloud feed answered ${r.status}`); return; }
       const j = await r.json(); showKey(false);
@@ -55,8 +60,10 @@ function loadCloud() {
   poll(); cloudTimer = setInterval(poll, 2000);
 }
 $('keyForm').addEventListener('submit', (e) => { e.preventDefault(); keySet($('key').value.trim()); $('key').value = ''; loadCloud(); });
-/* The Factory panel: only where the workshop's job board is, which is the local server. */
-const factory = createJobs({ section: $('factory'), form: $('jobForm'), list: $('jobList'), status: $('jobStatus'), enabled: isLoop && location.protocol !== 'file:' });
+/* The Factory panel on the local floor is the workshop's job board; on the cloud floor it is the showroom. */
+const factory = cloudMode
+  ? (() => { $('jobForm').hidden = true; $('jobList').hidden = true; $('showroom').hidden = false; $('factoryTitle').textContent = 'Showroom'; return createShowroom({ root: $('showroom'), status: $('jobStatus'), onFloor: (f) => { if (f && f !== cloudFloor) loadCloud(f); }, onUser: (u) => { if (!u) { $('floorName').textContent = 'A-01'; } } }); })()
+  : createJobs({ section: $('factory'), form: $('jobForm'), list: $('jobList'), status: $('jobStatus'), enabled: isLoop && location.protocol !== 'file:' });
 function loadReplay(events, label, meta) {
   resetEngine(label, meta); events.sort((a, b) => a.t - b.t).forEach((e) => engine.push(e));
   T.mode = 'replay'; T.loop = label === 'DEMO'; const b = bounds(); T.now = b.t0; T.playing = true; T.live = false; $('live').hidden = true; $('srcName').textContent = label;
@@ -150,6 +157,6 @@ function frame(ts) {
 }
 
 const src = new URLSearchParams(location.search).get('src') || (location.protocol === 'file:' ? 'demo' : isLoop ? 'live' : 'cloud');
-if (src === 'demo') loadDemo(); else if (src === 'cloud' || (src === 'live' && !isLoop)) loadCloud(); else loadLive();
-$('srcDemo').onclick = loadDemo; $('srcLive').onclick = () => (isLoop ? loadLive() : loadCloud());
+if (src === 'demo') loadDemo(); else if (src === 'cloud' || (src === 'live' && !isLoop)) loadCloud(cloudFloor); else loadLive();
+$('srcDemo').onclick = loadDemo; $('srcLive').onclick = () => (isLoop ? loadLive() : loadCloud(cloudFloor));
 requestAnimationFrame(frame);

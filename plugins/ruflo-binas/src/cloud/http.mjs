@@ -1,10 +1,11 @@
-// Shared bits for the Vercel functions: key check, body reading, JSON replies. Framework-free.
+// Shared bits for the Vercel functions: key check, cookies, body reading, JSON replies. Framework-free.
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 const FLOOR_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/i;
-export const floorOf = (q) => { const f = String((q && q.floor) || 'default'); return FLOOR_RE.test(f) ? f : 'default'; };
+export const floorOk = (f) => FLOOR_RE.test(String(f || ''));
+export const floorOf = (q) => { const f = String((q && q.floor) || 'default'); return floorOk(f) ? f : 'default'; };
 
-/** The key a floor expects: BINAS_KEY_<FLOOR> for a named floor, BINAS_KEY for the default floor. */
+/** The keys a floor accepts: BINAS_KEY_<FLOOR> for a named floor, plus BINAS_KEY (the workshop's master key) for any floor. */
 export function expectedKey(floor, env = process.env) {
   const named = env['BINAS_KEY_' + String(floor || 'default').toUpperCase().replace(/[^A-Z0-9]/g, '_')];
   if (named) return named;
@@ -15,11 +16,24 @@ export function keyOk(given, expected) {
   const a = createHash('sha256').update(String(given || '')).digest(), b = createHash('sha256').update(String(expected)).digest();
   return timingSafeEqual(a, b);
 }
+/** True when `given` is the floor's own key or the master key. Fails closed when neither is configured. */
+export function keyOkFor(given, floor, env = process.env) {
+  return keyOk(given, expectedKey(floor, env)) || keyOk(given, env.BINAS_KEY);
+}
 export function keyFrom(req) {
   const h = req.headers || {}; const auth = String(h.authorization || '');
   if (h['x-binas-key']) return String(h['x-binas-key']);
   if (/^bearer /i.test(auth)) return auth.slice(7).trim();
   return req.query && req.query.key ? String(req.query.key) : '';
+}
+
+export function cookieOf(req, name) {
+  const raw = String((req.headers && req.headers.cookie) || '');
+  for (const part of raw.split(';')) { const i = part.indexOf('='); if (i < 0) continue; if (part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim()); }
+  return '';
+}
+export function cookieHeader(name, value, maxAgeSec) {
+  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.max(0, Math.floor(maxAgeSec))}`;
 }
 
 export function json(res, status, body) {

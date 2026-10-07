@@ -3,18 +3,23 @@
 //   binas serve [--port 4777] [--root <dir>] [--open]   start the floor on loopback and follow the live feed
 //   binas demo  [--port 4777] [--open]                  same, landing on the recorded demo shift
 //   binas run   [--root <dir>] [--claude <bin>] [--sandbox docker] [--floor <name>] [--once]
-//                                                       the workshop: build queued jobs with headless Claude Code
+//               [--cloud <url> --key <master key>]      the workshop: build queued jobs, local then the cloud board
 //   binas job add --title "…" --brief "…" [--project <path> | --slug <name>] [--ship pr|branch|none] [--budget 5] [--model <m>] [--autonomy ask|full]
 //   binas jobs                                          list jobs
 //   binas answer <jobId> "<text>"                       answer a job that is waiting for you
+//   binas user new --username <u> --display "<name>" [--role owner|tester] [--floor <name>] [--allowance 25]
+//                                                       print a one-time password and the SQL that adds the user
 //   binas tail  [--root <dir>]                          print events as they are appended
 //   binas emit  '<json>' [--root <dir>]                 append one event by hand (testing)
 import { spawn, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { startServer } from '../src/server.mjs';
 import { appendEvent, followEvents, readEvents } from '../src/log.mjs';
-import { makeJob, saveJob, listJobs, answerJob, summarize } from '../src/factory/jobs.mjs';
+import { makeJob, saveJob, listJobs, answerJob } from '../src/factory/jobs.mjs';
 import { createRunner } from '../src/factory/runner.mjs';
+import { createBoard } from '../src/factory/board.mjs';
+import { hashPassword, newPassword, usernameOk } from '../src/cloud/auth.mjs';
+import { userInsertSql } from '../src/cloud/store.mjs';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0] || 'help';
@@ -40,7 +45,7 @@ async function serve(demo) {
 const stateMark = { queued: '·', running: '▸', blocked: '!', answered: '▸', done: '✓', shipped: '✓', failed: '×' };
 function printJobs() {
   const jobs = listJobs(root); if (!jobs.length) return out('no jobs yet. binas job add --title "…" --brief "…"');
-  for (const j of jobs) out(`${stateMark[j.state] || '·'} ${j.id}  ${j.state.padEnd(8)}  ${j.title}${j.question ? `\n      needs you: ${j.question.text}${j.question.options.length ? '  [' + j.question.options.join(' / ') + ']' : ''}` : ''}${j.links && (j.links.pr || j.links.remote) ? `\n      ${j.links.pr || j.links.remote}` : ''}${j.error ? `\n      ${j.error}` : ''}`);
+  for (const j of jobs) out(`${stateMark[j.state] || '·'} ${j.id}  ${j.state.padEnd(8)}  ${j.title}${j.cloud ? `  (cloud · floor ${j.cloud.floor})` : ''}${j.question ? `\n      needs you: ${j.question.text}${j.question.options.length ? '  [' + j.question.options.join(' / ') + ']' : ''}` : ''}${j.links && (j.links.preview || j.links.pr || j.links.remote) ? `\n      ${j.links.preview || j.links.pr || j.links.remote}` : ''}${j.error ? `\n      ${j.error}` : ''}`);
 }
 
 switch (cmd) {
@@ -50,8 +55,11 @@ switch (cmd) {
     const bin = flag('--claude', process.env.BINAS_CLAUDE_BIN || 'claude');
     const probe = spawnSync(bin, ['--version'], { encoding: 'utf8' });
     if (probe.error || probe.status !== 0) die(`cannot run "${bin}". Install Claude Code and log in (claude login), or pass --claude <path>.`, 1);
-    const runner = createRunner({ root, claude: { bin, prefixArgs: [] }, sandbox: flag('--sandbox', 'none'), floor: flag('--floor', process.env.BINAS_FLOOR || null), log: out });
-    out(`Binas workshop  root ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key stripped from jobs)\n  jobs     ${listJobs(root).length} on file`);
+    const cloudUrl = flag('--cloud', process.env.BINAS_CLOUD_URL || ''); const key = flag('--key', process.env.BINAS_KEY || '');
+    if (cloudUrl && !key) die('--cloud needs --key (or BINAS_KEY): the master key of the showroom', 1);
+    const board = cloudUrl ? createBoard({ url: cloudUrl, key, floor: flag('--floor', 'all') }) : null;
+    const runner = createRunner({ root, claude: { bin, prefixArgs: [] }, sandbox: flag('--sandbox', 'none'), floor: board ? null : flag('--floor', process.env.BINAS_FLOOR || null), board, log: out });
+    out(`Binas workshop  root ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key and host tokens stripped from sessions)\n  board    ${board ? board.url + ' (floor ' + flag('--floor', 'all') + ')' : 'local only (add --cloud <url> --key <key> for the showroom)'}\n  github   ${process.env.BINAS_GITHUB_OWNER ? 'repos under ' + process.env.BINAS_GITHUB_OWNER : 'no BINAS_GITHUB_OWNER: nothing pushed for new projects'}\n  preview  ${process.env.VERCEL_TOKEN ? 'vercel deploy --prod after every web turn' : 'no VERCEL_TOKEN: no previews'}\n  jobs     ${listJobs(root).length} on file`);
     if (has('--once')) { runner.tick().then((j) => { out(j ? `worked on ${j.id} → ${j.state}` : 'nothing to do'); process.exit(0); }).catch((e) => die(e.message, 1)); }
     else { const stop = runner.start(Number(flag('--poll', 3000))); out('  watching for jobs · Ctrl-C to stop'); process.on('SIGINT', () => { stop(); process.exit(0); }); }
     break;
@@ -71,6 +79,15 @@ switch (cmd) {
     try { const j = answerJob(root, id, text); out(`answered ${j.id}; the workshop resumes it on its next pass`); } catch (e) { die(e.message); }
     break;
   }
+  case 'user': {
+    if (argv[1] !== 'new') die('usage: binas user new --username <u> --display "<name>" [--role owner|tester] [--floor <name>] [--allowance 25]');
+    const username = flag('--username'); if (!usernameOk(username)) die('--username: 2 to 32 letters, digits, . _ -');
+    const role = flag('--role', 'tester') === 'owner' ? 'owner' : 'tester'; const floor = String(flag('--floor', username)).toLowerCase();
+    const allowance = role === 'owner' ? null : Number(flag('--allowance', 25));
+    const password = newPassword();
+    out(`user      ${username} (${role}) · floor ${floor} · allowance ${allowance === null ? 'unlimited' : '$' + allowance + '/month'}\npassword  ${password}   ← give this to them once; it is not stored anywhere\n\nRun this in the Neon SQL editor for the binas database:\n${userInsertSql({ username, display: flag('--display', username), role, floor, allowanceUsd: allowance, passHash: hashPassword(password) })}`);
+    break;
+  }
   case 'tail': { for (const e of readEvents(root).slice(-20)) out(JSON.stringify(e)); followEvents(root, (e) => out(JSON.stringify(e))); break; }
   case 'emit': {
     const raw = argv[1]; if (!raw) die('usage: binas emit \'{"kind":"start","agent":"me","text":"hello"}\'');
@@ -80,7 +97,6 @@ switch (cmd) {
     break;
   }
   default:
-    out(`binas — the office floor and the workshop\n\n  binas serve [--port 4777] [--root <dir>] [--open]\n  binas demo  [--port 4777] [--open]\n  binas run   [--root <dir>] [--claude <bin>] [--sandbox docker] [--floor <name>] [--once]\n  binas job add --title "…" --brief "…" [--project <path> | --slug <name>] [--ship pr|branch|none] [--budget 5] [--model <m>] [--autonomy ask|full]\n  binas jobs\n  binas answer <jobId> "<text>"\n  binas tail  [--root <dir>]\n  binas emit  '<json>' [--root <dir>]`);
+    out(`binas — the office floor and the workshop\n\n  binas serve [--port 4777] [--root <dir>] [--open]\n  binas demo  [--port 4777] [--open]\n  binas run   [--root <dir>] [--claude <bin>] [--sandbox docker] [--floor <name>] [--once] [--cloud <url> --key <key>]\n  binas job add --title "…" --brief "…" [--project <path> | --slug <name>] [--ship pr|branch|none] [--budget 5] [--model <m>] [--autonomy ask|full]\n  binas jobs\n  binas answer <jobId> "<text>"\n  binas user new --username <u> --display "<name>" [--role owner|tester] [--floor <name>] [--allowance 25]\n  binas tail  [--root <dir>]\n  binas emit  '<json>' [--root <dir>]`);
     process.exit(cmd === 'help' ? 0 : 2);
 }
-void summarize;

@@ -15,7 +15,8 @@ export const slugify = (s) => String(s || '').toLowerCase().trim().replace(SLUG_
 export const newId = () => 'job_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const short = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
-export function jobAgentId(job) { return 'job.' + job.id; }
+/** The peg on the floor: one per local job, one per cloud project (every turn of a project is the same peg). */
+export function jobAgentId(job) { return 'job.' + (job.cloud && job.cloud.projectId ? job.cloud.projectId : job.id); }
 export function jobAgentName(job) { return short(job.title, 10).toUpperCase(); }
 
 /** Build a job from a loose request; validates and fills defaults. Throws on a bad request. */
@@ -61,5 +62,5 @@ export function answerJob(root, id, text) {
 }
 
 export function summarize(job) {
-  return { id: job.id, title: job.title, state: job.state, project: job.project, ship: job.ship, autonomy: job.autonomy, budgetUsd: job.budgetUsd, model: job.model, createdAt: job.createdAt, startedAt: job.startedAt, finishedAt: job.finishedAt, question: job.question, answers: job.answers.length, costUsd: job.costUsd, turns: job.turns, summary: job.summary, links: job.links, error: job.error, branch: job.branch, agent: jobAgentId(job) };
+  return { id: job.id, title: job.title, state: job.state, project: job.project, ship: job.ship, autonomy: job.autonomy, budgetUsd: job.budgetUsd, model: job.model, createdAt: job.createdAt, startedAt: job.startedAt, finishedAt: job.finishedAt, question: job.question, answers: job.answers.length, costUsd: job.costUsd, turns: job.turns, summary: job.summary, links: job.links, error: job.error, branch: job.branch, agent: jobAgentId(job), cloud: job.cloud || null };
 }

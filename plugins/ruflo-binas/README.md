@@ -86,6 +86,45 @@ claude --plugin-dir plugins/ruflo-binas
 
 The hook still writes the local log first; the cloud copy is capped at 1.5 s and never blocks a tool. A `?floor=<name>` on the page and on the ingest URL keeps separate floors apart in one table.
 
+## The showroom (users, floors, approvals, conversations)
+
+On the cloud floor the Factory panel becomes the showroom. Each user signs in with a username and password, gets one floor, and talks to their projects; the owner sees every floor (the Building view) and an approvals tray. Six more functions in `api/`, three more tables on Neon.
+
+| Piece | What it does |
+|---|---|
+| `GET` · `POST` · `DELETE /api/login` | who am I · sign in `{ username, password }` (sets an HttpOnly, Secure, signed cookie) or change the password `{ password, newPassword }` · sign out |
+| `GET` · `POST /api/projects` | my projects (the owner: every floor, or `?floor=`) · open one `{ title, brief, kind }`; the first turn is queued or parked in the owner's tray |
+| `GET` · `POST /api/turns` | the conversation `?project=` · a new turn `{ project, text }`, or the answer to an open question |
+| `GET` · `POST /api/approvals` | the owner's tray · `{ turn, decision: approve\|reject, note?, budgetUsd? }` |
+| `GET /api/floors` | the Building view: usage, allowance, counts and the last event per floor |
+| `GET` · `POST /api/work` | the cloud job board for the workshop (master key): next queued turns · progress and results |
+
+A project is a conversation, not a prompt. The first message opens the repository and runs the full pipeline (researcher → designer → architect → coder → tester → design review → reviewer). Every later message is a turn on the same Claude session and branch: small asks go to a coder and a tester, big ones through the pipeline again. The floor may stop and ask; the answer resumes it. Every turn ends with a shift report: what exists now, what changed, how to open it, what is next.
+
+Allowances: the owner is unlimited; a tester has a monthly cap in dollars. Each turn gets a spend cap ($8 for a first turn, $6 for a big one, $2 for a small one, or what the owner sets); when the floor's month plus that cap is over the allowance, the turn waits in the owner's tray until approved or declined.
+
+| Variable | Purpose |
+|---|---|
+| `BINAS_SESSION_SECRET` | signs the session cookie (32+ random characters). Without it nobody can sign in. |
+| `BINAS_KEY` | the master key: the workshop uses it for the job board and for every floor's events. |
+| `DATABASE_URL` | the Neon connection string, as before. |
+
+Add a user with `binas user new` and paste the printed SQL into the Neon editor (the password is shown once and never stored; only its scrypt hash travels):
+
+```bash
+node bin/binas.mjs user new --username friend --display "Friend" --role tester --allowance 25
+```
+
+Run the workshop against the showroom on a machine with a Claude login:
+
+```bash
+export BINAS_GITHUB_OWNER=<your GitHub user>   # new projects become private repos there (needs gh, logged in)
+export VERCEL_TOKEN=<token>                    # web projects get `vercel deploy --prod` after every turn
+node bin/binas.mjs run --cloud https://binas.vercel.app --key <the master key> [--sandbox docker]
+```
+
+The workshop polls `/api/work`, runs each turn with the Binas hooks pointed at that floor, posts progress, questions and the shift report back, pushes and deploys from the host. Sessions never see the API key, the Vercel token, the GitHub token, the database or the session secret. Before anyone other than the owner gets a login, run with `--sandbox docker` so a stranger's prompt cannot reach the host.
+
 ## The workshop (the factory)
 
 Binas builds things, not just shows them. A job is a paper on the floor: you describe what to build, the workshop runs one headless Claude Code session per turn with the Ruflo pipeline, parks when the coordinator needs a decision, resumes with your answer, and ships.
@@ -103,7 +142,7 @@ Or do all of it from the Factory panel on the local floor (`binas serve`): the f
 |---|---|---|
 | fuel | the `claude` login on the machine | the API key is stripped from job sessions; set `billing: "api"` on a job to allow it |
 | autonomy | `ask` | edits auto-accepted, a fixed tool allowlist, no `git push`; `full` skips permissions (only in a container) |
-| sandbox | `none` | `--sandbox docker` runs each turn in a container that sees only the work dir, `~/.claude` and the plugin (untested here, no Docker in the build session) |
+| sandbox | `none` | `--sandbox docker` runs each turn in a container that sees only the work dir, `~/.claude` and the plugin, on a bridged network with none of the host's tokens (composed and unit-tested, not yet run against Docker in the build session) |
 | budget | $5 per turn | `--max-budget-usd` on the session |
 | ship | `pr` | commit leftovers, push the branch, open a pull request with `gh`; `branch` pushes only; `none` keeps it local. No remote means branch only, said so in the log |
 | project | new | a fresh repo under `projects/<slug>` with a CLAUDE.md; `--project <path>` works in a git worktree on branch `binas/<jobId>` |
@@ -117,16 +156,21 @@ Drop any `.jsonl` of events onto the floor to replay it. The scrubber, arrow key
 ## Layout
 
 ```
-bin/binas.mjs                 CLI: serve, demo, tail, emit
+bin/binas.mjs                 CLI: serve, demo, run, job, jobs, answer, user, tail, emit
 src/events.mjs                contract: normalize, parse, write
 src/log.mjs                   append-only log, rotation, follow
 src/adapters/claude-hooks.mjs hook payload -> events (pure)
 src/adapters/missions.mjs     Ruflo mission log -> events (pure + reader)
 src/server.mjs                loopback http + SSE
+src/cloud/                    neon (HTTP SQL), http, auth (scrypt + signed cookie), store (tables), showroom (handlers), serve (shim)
+src/factory/                  jobs, prompt (pipeline + design rules), runner, board (cloud client), ship, preview
+api/                          the Vercel functions: events, ingest, info, login, projects, turns, approvals, floors, work
 web/engine.js                 the fold: events -> world at any instant (pure; shared with tests)
 web/scene.js                  the model, in three.js
 web/board.js                  split-flap cells and synthesized sound
 web/app.js                    sources, time, controls
+web/jobs.js                   the local Factory panel
+web/showroom.js               sign-in, projects as conversations, Building view, approvals tray
 demo/shift-014.jsonl          the recorded demo shift (scripts/make-demo-shift.mjs)
 ```
 
