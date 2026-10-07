@@ -25,7 +25,8 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     if (!r.ok) { say(r.error || 'sign-in refused'); return; }
     login.reset(); await setUser(r.user);
   });
-  $('#signOut').onclick = async () => { await api('DELETE', '/api/login'); S.user = null; S.floor = null; S.project = null; show(); say('signed out'); if (onUser) onUser(null); };
+  const signOut = document.getElementById('signOut');
+  signOut.onclick = async () => { await api('DELETE', '/api/login'); S.user = null; S.floor = null; S.project = null; show(); say('signed out'); if (onUser) onUser(null); };
   async function setUser(u) {
     S.user = u; S.floor = u ? u.floor : null; S.project = null; S.sig = {}; show(); if (onUser) onUser(u); if (onFloor && u) onFloor(S.floor);
     say(u ? `${u.display} · floor ${u.floor}${u.role === 'owner' ? ' · owner' : u.allowanceUsd !== null ? ` · ${money(u.allowanceUsd)} a month` : ''}` : 'sign in to use the floor');
@@ -33,7 +34,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
   }
   function show() {
     const on = !!S.user;
-    $('#loginForm').hidden = on; $('#signOut').hidden = !on; $('#projectForm').hidden = !on;
+    $('#loginForm').hidden = on; signOut.hidden = !on; $('#projectForm').hidden = !on;
     $('#projects').hidden = !on; $('#building').hidden = !on || !owner(); $('#tray').hidden = !on || !owner();
     $('#thread').hidden = !on || !S.project;
   }
