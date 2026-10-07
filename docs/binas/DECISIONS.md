@@ -29,6 +29,8 @@ One line per decision, newest at the bottom. The next session reads this first.
 | 2026-10-07 | Before any tester gets a login, each turn runs in a container with no owner tokens inside; the host does push and deploy afterwards. | Strangers' prompts on the owner's machine with the owner's tokens is the one unacceptable risk. |
 | 2026-10-07 | Workshop v1 shipped: job store, pipeline prompt with `binas-ask` / `binas-done` fences, runner (worktree, headless session, ask, answer, resume, ship), local job board on the page and the CLI. Cloud job board, users, allowances, intake chat and Building view wait on Neon. | Neon connector still unauthorized; Doc Ledger's connection string on Vercel is a sealed secret no API can read. |
 
+| 2026-10-07 | Neon attached: project `binas` (`little-brook-04386070`, aws-us-east-1, Postgres 17), database `binas`, role `binas`, table `binas_events`. The connection string lives only in the Vercel project `binas` as a sealed `DATABASE_URL`. | Same AWS region as the Vercel functions (iad1). The owner re-authorized the Neon connector mid-session and its tools appeared. |
+
 ## Open
 
 - Sound design beyond the synthesized set.
