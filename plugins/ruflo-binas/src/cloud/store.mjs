@@ -43,8 +43,11 @@ export async function insertProject(sql, p, now = Date.now()) {
 }
 export async function getProject(sql, id) { const r = await sql(`SELECT * FROM ${T_PROJECTS} WHERE id = $1`, [String(id || '')]); return projectRow(r[0]); }
 /** Projects on the given floors (null = every floor), newest activity first, each with its latest turn. */
-export async function listProjects(sql, floors = null, limit = 100) {
-  const params = []; const where = floors ? `WHERE floor IN (${inList(floors, params)})` : '';
+export async function listProjects(sql, floors = null, limit = 100, { includeClosed = false } = {}) {
+  const params = []; const conds = [];
+  if (floors) conds.push(`floor IN (${inList(floors, params)})`);
+  if (!includeClosed) conds.push(`status <> 'closed'`);
+  const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
   params.push(Math.min(500, Math.max(1, limit)));
   const rows = (await sql(`SELECT * FROM ${T_PROJECTS} ${where} ORDER BY updated_at DESC LIMIT $${params.length}`, params)).map(projectRow);
   if (!rows.length) return rows;

@@ -4,7 +4,7 @@
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const money = (n) => '$' + Number(n || 0).toFixed(2);
 const when = (ms) => { const d = new Date(Number(ms)); return isNaN(d) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); };
-const STATUS = { new: 'opening', queued: 'queued', approval: 'in the owner’s tray', running: 'on the floor', blocked: 'needs you', idle: 'idle', failed: 'failed' };
+const STATUS = { new: 'opening', queued: 'queued', approval: 'in the owner’s tray', running: 'on the floor', blocked: 'needs you', idle: 'idle', failed: 'failed', closed: 'closed' };
 const api = async (method, path, body) => { const r = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); const j = await r.json().catch(() => ({})); return { ok: r.ok, status: r.status, ...j }; };
 const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
 const btn = (label, onclick, cls) => { const b = el('button', cls, label); b.type = 'button'; b.onclick = onclick; return b; };
@@ -94,7 +94,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     const links = [p.previewUrl ? `<a href="${esc(p.previewUrl)}" target="_blank" rel="noopener">open the preview</a>` : '', p.repo ? `<a href="${esc(p.repo)}" target="_blank" rel="noopener">code</a>` : ''].filter(Boolean).join(' · ');
     head.innerHTML = `<div class="ttitle"></div><div class="tstate mono"></div>${links ? `<div class="tlinks">${links}</div>` : ''}`;
     head.querySelector('.ttitle').textContent = p.title; head.querySelector('.tstate').textContent = `${STATUS[p.status] || p.status} · ${p.kind} · ${money(p.costUsd)} so far`;
-    head.appendChild(btn('All projects', () => { S.project = null; delete S.sig.projects; show(); }, 'quiet back'));
+    const acts = el('div', 'back'); acts.append(btn('All projects', () => { S.project = null; delete S.sig.projects; show(); }, 'quiet'), btn('Close', () => closeProject(p), 'quiet')); head.appendChild(acts);
     box.appendChild(head);
     const list = el('div', 'msgs');
     for (const t of S.turns) {
@@ -117,6 +117,11 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     ta.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') form.requestSubmit(); });
     box.appendChild(form);
     list.scrollTop = list.scrollHeight;
+  }
+  async function closeProject(p) {
+    if (!confirm(`Close "${p.title}"? Nothing is deleted; queued work is withdrawn and it leaves the list.`)) return;
+    const r = await api('DELETE', `/api/projects?project=${encodeURIComponent(p.id)}`); say(r.ok ? 'closed' : r.error || 'refused');
+    if (r.ok) { S.project = null; delete S.sig.projects; show(); refresh(); }
   }
   async function send(text) {
     if (!S.project) return false; say('sending…');

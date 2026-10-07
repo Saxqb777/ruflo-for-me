@@ -56,7 +56,7 @@ test('login: who am I, sign in with a real hash, wrong password refused, change 
 test('projects: a tester sees one floor, the owner every floor; opening one queues the first turn or parks it in the tray', async () => {
   let sql = scripted([[prow()], [trow()]]);
   const mine = await projects(ctx({ user: TESTER, sql })); assert.equal(mine.status, 200); assert.equal(mine.body.projects[0].latest.kind, 'request'); assert.deepEqual(sql.calls[0].params.slice(0, 1), ['tee']);
-  sql = scripted([[]]); await projects(ctx({ user: OWNER, sql })); assert.ok(!sql.calls[0].query.includes('WHERE'), 'owner lists every floor');
+  sql = scripted([[]]); await projects(ctx({ user: OWNER, sql })); assert.ok(!sql.calls[0].query.includes('floor IN'), 'owner lists every floor');
   sql = scripted([[]]); await projects(ctx({ user: OWNER, sql, query: { floor: 'tee' } })); assert.deepEqual(sql.calls[0].params[0], 'tee');
   assert.equal((await projects(ctx({ method: 'POST', user: TESTER, sql: scripted(), body: { title: '', brief: 'x'.repeat(30) } }))).status, 400);
   assert.equal((await projects(ctx({ method: 'POST', user: TESTER, sql: scripted(), body: { title: 'T', brief: 'short' } }))).status, 400);
@@ -73,6 +73,18 @@ test('projects: a tester sees one floor, the owner every floor; opening one queu
   sql = scripted([[], [{ id: '1' }], [prow()], [trow()]]);
   await projects(ctx({ method: 'POST', user: OWNER, sql, body: { title: 'O', brief: 'The owner opens one without an allowance check.' } }));
   assert.ok(!sql.calls[0].query.includes('coalesce(sum'), 'no allowance query for the owner');
+});
+
+test('closing a project withdraws its queued work and hides it from the list; nothing is deleted', async () => {
+  let sql = scripted([[prow({ status: 'queued' })], [trow({ status: 'queued' })], [], [{ id: '2' }], [], [prow({ status: 'closed' })]]);
+  const r = await projects(ctx({ method: 'DELETE', user: TESTER, sql, query: { project: 'prj_1' } }));
+  assert.equal(r.status, 200); assert.equal(r.body.project.status, 'closed');
+  assert.equal(sql.calls[2].params[1], 'rejected'); assert.equal(sql.calls[3].params[5], 'Project closed.'); assert.equal(sql.calls[4].params[1], 'closed');
+  assert.ok(sql.calls.every((c) => !/^DELETE/i.test(c.query)));
+  assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ status: 'running' })]]), query: { project: 'prj_1' } }))).status, 409);
+  assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ floor: 'main' })]]), query: { project: 'prj_1' } }))).status, 404);
+  sql = scripted([[]]); await projects(ctx({ user: TESTER, sql })); assert.ok(sql.calls[0].query.includes("status <> 'closed'"));
+  sql = scripted([[]]); await projects(ctx({ user: TESTER, sql, query: { all: '1' } })); assert.ok(!sql.calls[0].query.includes("status <> 'closed'"));
 });
 
 test('turns: visibility by floor, one open turn per project, an answer closes the open ask', async () => {

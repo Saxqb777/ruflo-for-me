@@ -51,9 +51,18 @@ export async function projects(ctx) {
   const { method, query = {}, body = {}, user, sql, now } = ctx;
   if (method === 'GET') {
     const floors = isOwner(user) ? (query.floor && floorOk(query.floor) ? [query.floor] : null) : [user.floor];
-    return reply(200, { projects: await db.listProjects(sql, floors) });
+    return reply(200, { projects: await db.listProjects(sql, floors, 100, { includeClosed: query.all === '1' }) });
   }
-  if (method !== 'POST') return reply(405, { error: 'GET or POST' });
+  if (method === 'DELETE') {
+    // closing a project: nothing is deleted; its open work is withdrawn so the workshop never picks it up
+    const p = await visibleProject(ctx, query.project); if (!p) return reply(404, { error: 'no such project' });
+    if (p.status === 'running') return reply(409, { error: 'the floor is working on it; wait for the turn to finish' });
+    const open = await db.openWork(sql, p.id); if (open) await db.updateTurn(sql, open.id, { status: 'rejected' }, now);
+    await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: (open ? open.n : p.turns) + 1, author: user.username, kind: 'note', text: 'Project closed.', status: 'done' }, now);
+    await db.updateProject(sql, p.id, { status: 'closed' }, now);
+    return reply(200, { project: await db.getProject(sql, p.id) });
+  }
+  if (method !== 'POST') return reply(405, { error: 'GET, POST or DELETE' });
   const title = short(body.title, 80); const brief = String(body.brief || '').trim().slice(0, 8000);
   if (!title) return reply(400, { error: 'a project needs a title' });
   if (brief.length < 20) return reply(400, { error: 'say more: what it is, who it is for, what done looks like' });
