@@ -1,0 +1,89 @@
+# ruflo-binas
+
+Binas is the office floor as a living architectural model. A 3D cutaway office sits on its own blueprint. Your Claude Code session is the coordinator at the mailroom desk. Every subagent gets a desk by role. Paper moves between desks by pneumatic tube. A lamp lights when someone works, a flag rises when someone needs you, a stamp lands when work is done, shipments leave on a belt through the dock door, and the feed is a split-flap departures board. Everything on the floor is a real event. Anything not measured reads n/a.
+
+Design notes and decisions: [`docs/binas/`](../../docs/binas/).
+
+## Run it
+
+```bash
+# inside this plugin directory, or point --root at a project
+node bin/binas.mjs demo --open          # the recorded demo shift
+node bin/binas.mjs serve --open         # the live floor for the project in the current directory
+node bin/binas.mjs tail                 # print events as they are appended
+node bin/binas.mjs emit '{"kind":"start","agent":"me","role":"coordinator","text":"hello"}'
+```
+
+The server binds `127.0.0.1:4777` (`--port`), serves `web/` and `demo/`, and streams `/events` as server-sent events. The page loads three.js from cdnjs and the two fonts from Google Fonts, so the browser needs network for those; the feed itself never leaves the machine.
+
+## Where the live feed comes from
+
+Load the plugin and every hook appends one line to `.claude-flow/binas/events.jsonl`:
+
+```bash
+claude --plugin-dir plugins/ruflo-binas
+```
+
+| Claude Code hook | On the floor |
+|---|---|
+| `SessionStart` | the coordinator (`ME`) sits down in the Mailroom |
+| `UserPromptSubmit` | a paper arrives through the IN chute and lands on the coordinator's tray |
+| `PreToolUse` for `Agent` | a subagent joins at a desk for its role and the paper shoots to it by tube |
+| `PostToolUse` for `Agent` | the subagent's done (or fail) stamp lands and the paper tubes back |
+| other tool calls | the coordinator's lamp is on, with the tool as the task line |
+| `Notification` asking for permission | the flag goes up until the next tool runs |
+| `Bash` with `git push`, `gh pr create`, `npm publish` | a shipment rides the belt out through the dock door and is filed in Records |
+| `Stop`, `SessionEnd` | done stamp, lamps off, pegs leave |
+
+The server also reads Ruflo mission logs (`.claude-flow/missions/*/events.jsonl`, ADR-406) and maps `mission.created`, `blocked`, `acceptance.passed`, `failure.verified` and friends onto the same floor. See `src/adapters/`.
+
+The hook never blocks a tool. It prints nothing to stdout, swallows every error, and exits 0. Set `BINAS_DEBUG=1` to see errors on stderr.
+
+## Event contract v0.1
+
+One JSON object per line. `t` and `kind` are required.
+
+```json
+{"t":"2026-10-07T09:31:07.000Z","kind":"handoff","agent":"AR","role":"architect","to":"C1","toRole":"coder","paper":"P2","text":"blob access plan","source":"demo"}
+```
+
+| kind | meaning |
+|---|---|
+| `join` / `leave` | an agent takes or leaves a desk (`agent`, `role`, `name`) |
+| `arrive` | a paper enters through the chute (`paper`, `text`, optional `to`) |
+| `claim` / `handoff` | a paper goes by tube from `agent` to `to` |
+| `start` | `agent` works on `paper` (`text` is the task line) |
+| `block` / `unblock` | `agent` needs a yes; the flag goes up and down |
+| `done` / `fail` | a stamp lands on `agent`'s desk |
+| `ship` | `agent` sends `paper` out through the dock |
+
+Strings are trimmed, stripped of control characters and capped. Unknown kinds and bad lines are skipped, never fatal. The engine assigns desks by role: coordinator → Mailroom, research → Research, architect/planner → Drafting, tester → Test lab, reviewer/security → Review, release/deploy → Dock, everyone else → Build floor. A full room overflows to the Build floor.
+
+## Replay
+
+Drop any `.jsonl` of events onto the floor to replay it. The scrubber, arrow keys and speeds work on live feeds too: drag back to review, press Back to live to catch up.
+
+## Layout
+
+```
+bin/binas.mjs                 CLI: serve, demo, tail, emit
+src/events.mjs                contract: normalize, parse, write
+src/log.mjs                   append-only log, rotation, follow
+src/adapters/claude-hooks.mjs hook payload -> events (pure)
+src/adapters/missions.mjs     Ruflo mission log -> events (pure + reader)
+src/server.mjs                loopback http + SSE
+web/engine.js                 the fold: events -> world at any instant (pure; shared with tests)
+web/scene.js                  the model, in three.js
+web/board.js                  split-flap cells and synthesized sound
+web/app.js                    sources, time, controls
+demo/shift-014.jsonl          the recorded demo shift (scripts/make-demo-shift.mjs)
+```
+
+Zero dependencies. `npm test` runs `node --test tests/*.test.mjs`. `scripts/smoke.sh` is the structural contract CI runs.
+
+## Known limits (0.1.0)
+
+- Pegs do not walk; paper moves, people stay seated. Agents beyond the desks on the floor share a desk.
+- The hook adapter names subagents from the `Agent` tool input; a subagent spawned any other way shows up only when `SubagentStop` can pair it.
+- Three.js comes from a CDN; there is no offline bundle yet.
+- Sound is synthesized and off by default.

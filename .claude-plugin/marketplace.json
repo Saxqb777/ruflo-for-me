@@ -235,6 +235,11 @@
       "name": "ruflo-console",
       "source": "./plugins/ruflo-console",
       "description": "Early access: ruflo's cockpit as a Claude Code mod (function hooks) and the one /ruflo command for every ruflo mod \u2014 overview with health alerts, swarm topology, claims flow, federation map, plugin health, learning pipeline, MetaHarness radar, memory, cost gauge, agent timeline, approvals and events; a command palette for confirm-gated actions through the ruflo CLI; auto-opens where it docks; no network by default"
+    },
+    {
+      "name": "ruflo-binas",
+      "source": "./plugins/ruflo-binas",
+      "description": "Binas: the office floor as a living architectural model. A 3D cutaway office where your session and its subagents sit at desks, paper moves by tube, lamps light when someone works, a flag rises when someone needs you, stamps land on done work and shipments leave through the dock; fed by Claude Code hooks and Ruflo mission logs, replayable from a log; loopback only"
     }
   ]
 }

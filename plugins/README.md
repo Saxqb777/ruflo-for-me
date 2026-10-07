@@ -66,6 +66,7 @@ claude $(ls -d plugins/ruflo-*/ | sed 's|^|--plugin-dir |' | tr '\n' ' ')
 | [ruflo-migrations](ruflo-migrations/) | Database schema migration management |
 | [ruflo-observability](ruflo-observability/) | Structured logging, tracing, metrics correlation |
 | [ruflo-cost-tracker](ruflo-cost-tracker/) | Token usage tracking, budget alerts, cost optimization |
+| [ruflo-binas](ruflo-binas/) | Binas: the office floor as a living 3D model, fed by hooks and mission logs, replayable |
 
 ### Domain-Specific
 

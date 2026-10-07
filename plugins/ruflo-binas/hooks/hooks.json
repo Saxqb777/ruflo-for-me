@@ -1,0 +1,13 @@
+{
+  "description": "Binas floor feed. Every hook appends one line to .claude-flow/binas/events.jsonl through scripts/hook.mjs (the main session is the coordinator, each Agent tool call is a subagent at a desk, a git push is a shipment) and keeps a small per-session correlation record beside it. A hook failure never blocks a tool: nothing is printed to stdout and the exit code is always 0. The command is a node -e bootstrap that resolves scripts/hook.mjs from CLAUDE_PLUGIN_ROOT inside Node, so the same string runs on Windows, macOS and Linux.",
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "PreToolUse": [{ "matcher": ".*", "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "PostToolUse": [{ "matcher": ".*", "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "timeout": 5, "command": "node -e \"import(require('url').pathToFileURL(require('path').join(process.env.CLAUDE_PLUGIN_ROOT,'scripts','hook.mjs')).href)\"" }] }]
+  }
+}

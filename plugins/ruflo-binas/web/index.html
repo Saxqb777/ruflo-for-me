@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Binas Floor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Fragment+Mono&display=swap">
+<style>
+/* Overprint tokens (Doc Ledger): paper, one ink, three spot inks. Dark = the night shift. */
+:root{--paper:#EDECE8;--sheet:#F7F6F3;--paper-2:#E5E3DD;--rule:#C6C2B8;--rule-2:#D8D5CD;--ink:#14141A;--ink-2:#57575F;--ink-3:#6B6B75;--ink-4:#B0B0B8;
+  --blue:#22356F;--blue-text:#22356F;--flare:#FF4A17;--flare-text:#C4340D;--green:#00A95C;--green-text:#00753F;
+  --display:'Archivo','Helvetica Neue',Arial,sans-serif;--mono:'Fragment Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#14141A;--sheet:#1A1A21;--paper-2:#22222A;--rule:#3A3A44;--rule-2:#2E2E37;--ink:#EDECE8;--ink-2:#ABA69B;--ink-3:#8A8A93;--ink-4:#57575F;--blue:#8B9AC6;--blue-text:#B9C4E4;--flare:#FF6B40;--flare-text:#FF9470;--green:#4DC78D;--green-text:#8EDCB5;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#14141A;--sheet:#1A1A21;--paper-2:#22222A;--rule:#3A3A44;--rule-2:#2E2E37;--ink:#EDECE8;--ink-2:#ABA69B;--ink-3:#8A8A93;--ink-4:#57575F;--blue:#8B9AC6;--blue-text:#B9C4E4;--flare:#FF6B40;--flare-text:#FF9470;--green:#4DC78D;--green-text:#8EDCB5;color-scheme:dark}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--display);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:2px solid var(--ink);padding:4px 10px;cursor:pointer;border-radius:0;letter-spacing:.08em;text-transform:uppercase;font-size:11px;font-weight:600}
+button:hover,button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--flare);outline-offset:2px}
+button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(--paper);color:var(--ink)}
+.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:500}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding-inline:16px}
+.bar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 28px;flex-wrap:wrap;padding-block:12px 10px;border-bottom:2px solid var(--ink)}
+.brand{display:flex;flex-direction:column;gap:3px}
+.wordmark{font-size:28px;font-weight:800;font-stretch:125%;letter-spacing:-.02em;line-height:1}
+.counters{display:flex;gap:20px;flex-wrap:wrap}.counters>div{display:flex;flex-direction:column;gap:3px}
+.flaps{display:flex;gap:2px}
+.cell{width:16px;height:22px;background:#1A1A21;color:#EDECE8;font:14px/22px var(--mono);text-align:center;position:relative;transform-style:preserve-3d;backface-visibility:hidden}
+.cell::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:#000;opacity:.55}
+.cell.f1{animation:flapA .09s linear}.cell.f2{animation:flapB .09s linear}
+@keyframes flapA{0%{transform:rotateX(0)}49%{transform:rotateX(-88deg)}51%{transform:rotateX(88deg)}100%{transform:rotateX(0)}}
+@keyframes flapB{0%{transform:rotateX(0)}49%{transform:rotateX(-88deg)}51%{transform:rotateX(88deg)}100%{transform:rotateX(0)}}
+.cell.warn{color:#FF6B40}.cell.ok{color:#8EDCB5}.cell.move{color:#B9C4E4}.cell.dim{color:#8A8A93}
+.clockf{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 430px;min-height:0;border-bottom:2px solid var(--ink)}
+.stage{position:relative;min-width:0;min-height:0;background:var(--paper);overflow:hidden}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}.stage canvas:active{cursor:grabbing}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lab{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:1px;white-space:nowrap}
+.lab .m{font:11px var(--mono);background:var(--sheet);color:var(--ink);border:1.5px solid var(--ink);padding:0 4px;line-height:15px}
+.lab .r{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.lab.sel .m{background:var(--ink);color:var(--paper)}
+.hud{position:absolute;left:12px;top:12px;display:flex;gap:6px;flex-wrap:wrap}.hud2{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.hud button,.hud2 button{background:var(--paper)}.hud button[aria-pressed="true"],.hud2 button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.hint{position:absolute;right:12px;bottom:12px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);background:var(--paper);padding:2px 6px}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--ink-2)}
+.panel{border-left:2px solid var(--ink);display:grid;grid-template-rows:auto auto minmax(0,1fr);min-height:0;min-width:0}
+.panel section{padding:10px 12px;border-bottom:1px solid var(--rule);min-width:0}.panel section:last-child{border-bottom:0;min-height:0;overflow:auto}
+.panel h2{margin:0 0 6px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:600;display:flex;justify-content:space-between}
+.board{background:#101016;padding:8px;display:flex;flex-direction:column;gap:3px;border:2px solid #000}
+.row{display:grid;grid-template-columns:repeat(30,1fr);gap:2px}.row .cell{width:auto;height:20px;font-size:11.5px;line-height:20px}
+#yes .none{color:var(--ink-3)}
+.yes-item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;border:2px solid var(--flare);padding:6px 8px;margin-bottom:6px;background:var(--sheet)}
+.yes-item .who{font-family:var(--mono);font-size:12px}.yes-item .cd{font-family:var(--mono);font-size:12px;color:var(--flare-text);text-align:right}.yes-item .txt{grid-column:1/-1;font-size:13px}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}.legend div{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}.sw{width:14px;height:14px;border:2px solid var(--ink);flex:none}
+.card{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start}
+.card .big{font:18px var(--mono);border:2px solid var(--ink);padding:4px 8px;grid-row:1/3;align-self:start}
+.card .r{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}.card .s{font-size:13px}.card .s.working{color:var(--blue-text)}.card .s.blocked{color:var(--flare-text)}
+.card .task{grid-column:1/-1;font-family:var(--mono);font-size:12px;border-top:1px solid var(--rule);padding-top:6px;margin-top:2px;min-height:34px}
+.card .hist{grid-column:1/-1;margin:4px 0 0;padding:0;list-style:none;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.card .hist li{display:flex;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card .hist .t{color:var(--ink-3)}.card button{justify-self:start;grid-column:1/-1;margin-top:6px;padding:2px 8px}
+.scrub{display:flex;align-items:center;gap:12px;padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));flex-wrap:wrap}
+.scrub input[type=range]{flex:1 1 220px;min-width:0;appearance:none;-webkit-appearance:none;height:2px;background:var(--ink);margin:0}
+.scrub input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:12px;height:18px;background:var(--paper);border:2px solid var(--ink);border-radius:0;cursor:ew-resize}
+.scrub input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--paper);border:2px solid var(--ink);border-radius:0;cursor:ew-resize}
+.scrub .el{font-family:var(--mono);font-size:13px;min-width:92px}.scrub .note{color:var(--ink-3)}
+@media (max-width:900px){body{overflow:auto}.app{height:auto;grid-template-rows:auto auto auto}.main{grid-template-columns:1fr}.stage{height:62vh;min-height:360px}.panel{border-left:0;border-top:2px solid var(--ink);grid-template-rows:auto auto auto}.scrub{position:sticky;bottom:0;background:var(--paper);border-top:2px solid var(--ink)}.row .cell{font-size:9.5px;height:16px;line-height:16px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span class="wordmark">BINAS</span><span class="eyebrow">Floor A-01 · Doc Ledger Co. · <span id="srcName">—</span> · <span id="info">loading</span></span></div>
+    <div class="counters">
+      <div><span class="eyebrow">In</span><div class="flaps" data-flaps="cIn" data-n="2"></div></div>
+      <div><span class="eyebrow">On floor</span><div class="flaps" data-flaps="cFloor" data-n="2"></div></div>
+      <div><span class="eyebrow">Needs you</span><div class="flaps" data-flaps="cBlocked" data-n="2"></div></div>
+      <div><span class="eyebrow">Shipped</span><div class="flaps" data-flaps="cShipped" data-n="3"></div></div>
+    </div>
+    <div class="clockf"><div class="flaps" data-flaps="clock" data-n="8"></div><span class="eyebrow">local time</span></div>
+  </header>
+  <div class="main">
+    <section class="stage" id="stage" aria-label="Office model">
+      <canvas id="gl"></canvas>
+      <div class="labels" id="labels"></div>
+      <div class="hud"><button id="vPlan" aria-pressed="false">Plan</button><button id="vModel" aria-pressed="true">Model</button><button id="vFollow" aria-pressed="false" disabled>Follow</button></div>
+      <div class="hud2"><button id="snd" aria-pressed="false">Sound off</button><button id="theme">Day / Night</button><button id="srcLive">Live</button><button id="srcDemo">Demo</button><button id="live" hidden>Back to live</button></div>
+      <div class="hint">drag to orbit · wheel to zoom · press an agent · drop a .jsonl to replay</div>
+    </section>
+    <aside class="panel">
+      <section><h2><span>Departures</span><span>the feed, newest first</span></h2><div class="board" id="board" aria-live="off"></div></section>
+      <section><h2>Waiting for a yes</h2><div id="yes"><div class="none">none</div></div></section>
+      <section id="who"><h2>Who</h2>
+        <div class="legend" id="legend">
+          <div><span class="sw" style="background:transparent"></span>idle, lamp off</div><div><span class="sw" style="background:var(--blue)"></span>working, lamp on</div>
+          <div><span class="sw" style="background:var(--flare)"></span>needs you, flag up</div><div><span class="sw" style="background:var(--green)"></span>done stamp</div>
+          <div style="grid-column:1/-1;color:var(--ink-3)">Paper travels by tube. Shipments leave on the belt through the dock door and get filed in Records. Every mark on the floor is a real event.</div>
+        </div>
+        <div class="card" id="card" hidden></div>
+      </section>
+    </aside>
+  </div>
+  <footer class="scrub">
+    <button id="play" aria-pressed="true">Pause</button><button id="speed">1×</button>
+    <input type="range" id="range" min="0" max="1000" value="0" step="1" aria-label="Scrub through the shift">
+    <span class="el" id="elapsed">00:00 / 00:00</span>
+    <span class="eyebrow note">Overprint · a working model · anything not measured reads n/a</span>
+  </footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module" src="./web/app.js"></script>
+</body>
+</html>

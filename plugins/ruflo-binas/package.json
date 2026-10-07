@@ -1,0 +1,18 @@
+{
+  "name": "ruflo-binas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Binas: the office floor as a living architectural model. Claude Code sessions and Ruflo missions rendered as a 3D cutaway office, fed by hooks, replayable from a log.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "bin": { "binas": "bin/binas.mjs" },
+  "scripts": {
+    "start": "node bin/binas.mjs serve",
+    "demo": "node bin/binas.mjs demo --open",
+    "demo:build": "node scripts/make-demo-shift.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "files": ["bin", "src", "web", "demo", "hooks", "scripts", ".claude-plugin", "README.md"]
+}
