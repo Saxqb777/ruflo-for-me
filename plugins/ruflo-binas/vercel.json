@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo no-deps",
+  "buildCommand": "node scripts/build-cloud.mjs",
+  "outputDirectory": "dist-cloud",
+  "cleanUrls": false,
+  "headers": [
+    { "source": "/api/(.*)", "headers": [{ "key": "cache-control", "value": "no-store" }] },
+    { "source": "/(.*)", "headers": [{ "key": "x-content-type-options", "value": "nosniff" }, { "key": "referrer-policy", "value": "no-referrer" }] }
+  ]
+}

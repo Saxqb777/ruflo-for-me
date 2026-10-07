@@ -30,6 +30,11 @@ function readStdin() {
     const out = mapHook(payload, state, Date.now());
     for (const e of out.events) appendEvent(root, e);
     writeFileSync(stateFile, JSON.stringify(out.state), { encoding: 'utf8', mode: 0o600 });
+    // Optional cloud copy: BINAS_INGEST_URL (…/api/ingest) + BINAS_KEY. Capped at 1.5 s, never fatal.
+    const url = process.env.BINAS_INGEST_URL, key = process.env.BINAS_KEY;
+    if (url && key && out.events.length && typeof fetch === 'function') {
+      try { await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-binas-key': key }, body: JSON.stringify(out.events), signal: AbortSignal.timeout(1500) }); } catch { /* best effort */ }
+    }
   } catch (err) {
     if (process.env.BINAS_DEBUG === '1') process.stderr.write(`[binas hook] ${err && err.message}\n`);
   }

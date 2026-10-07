@@ -25,10 +25,13 @@ step('hooks.json has command hooks for the eight events', () => ['SessionStart',
 step('every hook command resolves scripts/hook.mjs from CLAUDE_PLUGIN_ROOT', () => Object.values(hooks.hooks).every((arr) => arr.every((h) => h.hooks.every((c) => c.command.includes('CLAUDE_PLUGIN_ROOT') && c.command.includes("'hook.mjs'")))));
 step('hook entry never writes stdout and always exits 0', () => { const s = read('scripts/hook.mjs'); return !/process\.stdout\.write|console\.log/.test(s) && !/process\.exit\(\s*[1-9]/.test(s); });
 
-for (const f of ['bin/binas.mjs', 'src/events.mjs', 'src/log.mjs', 'src/server.mjs', 'src/adapters/claude-hooks.mjs', 'src/adapters/missions.mjs', 'web/index.html', 'web/engine.js', 'web/scene.js', 'web/board.js', 'web/app.js', 'demo/shift-014.jsonl', 'README.md'])
+for (const f of ['bin/binas.mjs', 'src/events.mjs', 'src/log.mjs', 'src/server.mjs', 'src/adapters/claude-hooks.mjs', 'src/adapters/missions.mjs', 'src/cloud/neon.mjs', 'src/cloud/http.mjs', 'api/events.mjs', 'api/ingest.mjs', 'api/info.mjs', 'vercel.json', 'scripts/build-cloud.mjs', 'web/index.html', 'web/engine.js', 'web/scene.js', 'web/board.js', 'web/app.js', 'demo/shift-014.jsonl', 'README.md'])
   step(`${f} exists`, () => existsSync(join(ROOT, f)));
-for (const f of ['web/engine.js', 'web/scene.js', 'web/board.js', 'web/app.js', 'src/server.mjs', 'src/adapters/claude-hooks.mjs', 'src/adapters/missions.mjs', 'src/events.mjs', 'src/log.mjs', 'bin/binas.mjs'])
+for (const f of ['web/engine.js', 'web/scene.js', 'web/board.js', 'web/app.js', 'src/server.mjs', 'src/adapters/claude-hooks.mjs', 'src/adapters/missions.mjs', 'src/events.mjs', 'src/log.mjs', 'src/cloud/neon.mjs', 'src/cloud/http.mjs', 'bin/binas.mjs'])
   step(`${f} under 500 lines`, () => lines(f) <= 500);
+step('vercel.json builds dist-cloud with no install step', () => { const v = JSON.parse(read('vercel.json')); return v.buildCommand === 'node scripts/build-cloud.mjs' && v.outputDirectory === 'dist-cloud' && v.framework === null; });
+step('cloud functions fail closed: every handler checks the key before touching the database', () => ['api/events.mjs', 'api/ingest.mjs'].every((f) => { const s = read(f); return s.indexOf('keyOk(') < s.indexOf('neonClient(') && s.includes('export default async function handler'); }));
+step('cloud reads the connection string only from the environment', () => !/postgres(ql)?:\/\/[^'"\s]+@/.test(read('src/cloud/neon.mjs') + read('api/events.mjs') + read('api/ingest.mjs') + read('api/info.mjs')));
 
 step('demo shift has 60+ events, 3 shipments, a block and a fail', () => {
   const evs = read('demo/shift-014.jsonl').split('\n').filter(Boolean).map((l) => JSON.parse(l));

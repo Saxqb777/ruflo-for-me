@@ -26,8 +26,34 @@ let selected = null, lastFeedN = -1, lastNow = 0, lastTs = performance.now();
 function bounds() { const b = engine.bounds(); return Number.isFinite(b.t0) ? { t0: b.t0 - 500, t1: b.t1 + 6000 } : { t0: Date.now() - 1000, t1: Date.now() + 1000 }; }
 
 /* ---- sources ---- */
-let es = null;
-function resetEngine(label, meta) { engine = createEngine(); lastFeedN = -1; selected = null; card.hidden = true; legend.hidden = false; T.label = label; scene.setMeta(meta); }
+let es = null, cloudTimer = null, cloudCursor = 0, dateSet = false;
+const isLoop = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+function stopSources() { if (es) { es.close(); es = null; } if (cloudTimer) { clearInterval(cloudTimer); cloudTimer = null; } }
+function resetEngine(label, meta) { stopSources(); engine = createEngine(); lastFeedN = -1; selected = null; dateSet = false; card.hidden = true; legend.hidden = false; T.label = label; scene.setMeta(meta); }
+const keyGet = () => { try { return localStorage.getItem('binas.key') || ''; } catch { return ''; } };
+const keySet = (v) => { try { localStorage.setItem('binas.key', v); } catch { /* per-viewer convenience only */ } };
+const showKey = (on) => { $('keyForm').hidden = !on; };
+/* Cloud: the Vercel functions in api/ backed by Neon. Polls a cursor; the key is kept in this browser only. */
+function loadCloud() {
+  resetEngine('CLOUD', { shift: 'CLOUD', date: new Date().toISOString().slice(0, 10), source: 'CLOUD · NEON' });
+  T.mode = 'live'; T.live = true; T.loop = false; T.playing = true; $('live').hidden = true; $('srcName').textContent = 'CLOUD'; cloudCursor = 0;
+  const floor = new URLSearchParams(location.search).get('floor') || 'default';
+  const poll = async () => {
+    const key = keyGet(); if (!key) { showKey(true); setInfo('enter the floor key to follow the live feed · demo needs no key'); return; }
+    try {
+      const r = await fetch(`/api/events?floor=${encodeURIComponent(floor)}&after=${cloudCursor}&limit=2000`, { headers: { 'x-binas-key': key }, cache: 'no-store' });
+      if (r.status === 401) { showKey(true); setInfo('that floor key was refused'); return; }
+      if (r.status === 503) { setInfo('cloud: no database connected yet · the demo works'); return; }
+      if (!r.ok) { setInfo(`cloud feed answered ${r.status}`); return; }
+      const j = await r.json(); showKey(false);
+      j.events.forEach((e) => engine.push(e)); cloudCursor = j.cursor || cloudCursor;
+      if (j.events.length && !dateSet) { scene.setMeta({ date: dateOf(j.events) }); dateSet = true; }
+      setInfo(engine.feed.length ? `${engine.feed.length} lines · following · floor ${floor}` : `floor ${floor} is empty · waiting for the first event`);
+    } catch { setInfo('cloud feed unreachable · retrying'); }
+  };
+  poll(); cloudTimer = setInterval(poll, 2000);
+}
+$('keyForm').addEventListener('submit', (e) => { e.preventDefault(); keySet($('key').value.trim()); $('key').value = ''; loadCloud(); });
 function loadReplay(events, label, meta) {
   resetEngine(label, meta); events.sort((a, b) => a.t - b.t).forEach((e) => engine.push(e));
   T.mode = 'replay'; T.loop = label === 'DEMO'; const b = bounds(); T.now = b.t0; T.playing = true; T.live = false; $('live').hidden = true; $('srcName').textContent = label;
@@ -40,7 +66,7 @@ async function loadDemo() {
 function loadLive() {
   resetEngine('LIVE', { shift: 'LIVE', date: new Date().toISOString().slice(0, 10), source: 'LIVE · HOOKS + MISSIONS' });
   T.mode = 'live'; T.live = true; T.loop = false; T.playing = true; $('live').hidden = false; $('srcName').textContent = 'LIVE';
-  if (es) es.close(); es = new EventSource('/events');
+  es = new EventSource('/events');
   es.addEventListener('backlog', (m) => { try { const arr = JSON.parse(m.data); arr.forEach((e) => engine.push(e)); setInfo(arr.length ? `${arr.length} events in the log · following` : 'log is empty · waiting for the first hook event'); if (arr.length) scene.setMeta({ date: dateOf(arr) }); } catch { /* ignore */ } });
   es.addEventListener('ev', (m) => { try { engine.push(JSON.parse(m.data)); } catch { /* ignore */ } });
   es.onerror = () => setInfo('feed disconnected · retrying');
@@ -48,7 +74,7 @@ function loadLive() {
 function parseJsonl(text) { const out = []; for (const line of text.split('\n')) { const s = line.trim(); if (!s) continue; try { const o = JSON.parse(s); const t = typeof o.t === 'number' ? o.t : Date.parse(o.t); if (Number.isFinite(t) && o.kind) out.push({ ...o, t }); } catch { /* skip */ } } return out; }
 function dateOf(events) { const e = events.find((x) => Number.isFinite(x.t)); return e ? new Date(e.t).toISOString().slice(0, 10) : ''; }
 function setInfo(s) { $('info').textContent = s; }
-stage.addEventListener('dragover', (e) => { e.preventDefault(); }); stage.addEventListener('drop', async (e) => { e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return; if (es) { es.close(); es = null; } const events = parseJsonl(await f.text()); loadReplay(events, 'FILE', { shift: f.name.slice(0, 14), date: dateOf(events), source: 'FILE · REPLAY' }); });
+stage.addEventListener('dragover', (e) => { e.preventDefault(); }); stage.addEventListener('drop', async (e) => { e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return; const events = parseJsonl(await f.text()); loadReplay(events, 'FILE', { shift: f.name.slice(0, 14), date: dateOf(events), source: 'FILE · REPLAY' }); });
 
 /* ---- theme ---- */
 const isDark = () => { const t = document.documentElement.getAttribute('data-theme'); if (t === 'dark') return true; if (t === 'light') return false; return matchMedia('(prefers-color-scheme: dark)').matches; };
@@ -105,7 +131,7 @@ function frame(ts) {
   requestAnimationFrame(frame);
 }
 
-const src = new URLSearchParams(location.search).get('src') || (location.protocol === 'file:' ? 'demo' : 'live');
-if (src === 'demo') loadDemo(); else loadLive();
-$('srcDemo').onclick = () => { if (es) { es.close(); es = null; } loadDemo(); }; $('srcLive').onclick = loadLive;
+const src = new URLSearchParams(location.search).get('src') || (location.protocol === 'file:' ? 'demo' : isLoop ? 'live' : 'cloud');
+if (src === 'demo') loadDemo(); else if (src === 'cloud' || (src === 'live' && !isLoop)) loadCloud(); else loadLive();
+$('srcDemo').onclick = loadDemo; $('srcLive').onclick = () => (isLoop ? loadLive() : loadCloud());
 requestAnimationFrame(frame);

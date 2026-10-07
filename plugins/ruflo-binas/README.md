@@ -59,6 +59,33 @@ One JSON object per line. `t` and `kind` are required.
 
 Strings are trimmed, stripped of control characters and capped. Unknown kinds and bad lines are skipped, never fatal. The engine assigns desks by role: coordinator → Mailroom, research → Research, architect/planner → Drafting, tester → Test lab, reviewer/security → Review, release/deploy → Dock, everyone else → Build floor. A full room overflows to the Build floor.
 
+## Run it in the cloud (Vercel + Neon)
+
+The same page deploys to Vercel with three functions in `api/` and a Neon Postgres table behind them. No dependencies: `src/cloud/neon.mjs` speaks Neon's HTTP SQL endpoint directly.
+
+| Piece | What it does |
+|---|---|
+| `GET /api/events?floor=default&after=<id>` | the feed after a cursor, oldest first. Needs `x-binas-key`. |
+| `POST /api/ingest?floor=default` | accepts one event, an array, or JSON lines. Needs `x-binas-key`. Normalizes before insert. |
+| `GET /api/info` | is a key set, is a database connected, how many events. Never a secret. |
+
+Project settings: root directory `plugins/ruflo-binas`, build `node scripts/build-cloud.mjs`, output `dist-cloud` (already in `vercel.json`). Environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `BINAS_KEY` | the floor key. Without it every live read and write is refused. The page asks for it once and keeps it in that browser only. |
+| `DATABASE_URL` | a Neon connection string. Without it the API answers 503 and the demo still works. |
+
+Send your local hooks to the cloud floor too:
+
+```bash
+export BINAS_INGEST_URL=https://<your-deployment>/api/ingest
+export BINAS_KEY=<the floor key>
+claude --plugin-dir plugins/ruflo-binas
+```
+
+The hook still writes the local log first; the cloud copy is capped at 1.5 s and never blocks a tool. A `?floor=<name>` on the page and on the ingest URL keeps separate floors apart in one table.
+
 ## Replay
 
 Drop any `.jsonl` of events onto the floor to replay it. The scrubber, arrow keys and speeds work on live feeds too: drag back to review, press Back to live to catch up.

@@ -16,6 +16,8 @@ One line per decision, newest at the bottom. The next session reads this first.
 | 2026-10-07 | A `git push`, `gh pr create` or `npm publish` is a shipment. | The one moment work actually leaves the building. |
 | 2026-10-07 | Motion exception to Overprint's 120 ms rule: travel is slow and linear; state changes are stepped (flaps, stamps, flags). Never a spring. | Mechanical reads as a model; bouncy reads as a game. |
 | 2026-10-07 | Pegs do not walk in 0.1.0. Paper moves, people sit. | Half the animation code, no loss of legibility; walking is a later milestone if wanted. |
+| 2026-10-07 | Cloud Binas = Vercel static page + three functions in `api/` + one Neon table `binas_events`, keyed by `floor`. Reads and writes need `BINAS_KEY`; no key configured means nobody gets in. Neon is reached over its HTTP SQL endpoint with no dependency. | Serverless cannot tail a file or hold an SSE connection; a table with an id cursor and 2 s polling is the honest equivalent. Fail closed because the feed names files, tools and prompts. |
+| 2026-10-07 | Vercel project `binas` in team saxqb777's projects, root `plugins/ruflo-binas`, deployed from this branch. Neon not yet attached: the Neon connector was not authorized in the session that built this. | Owner asked to run it on Vercel + Neon; the page ships now in demo mode and lights up live when `DATABASE_URL` is set. |
 
 ## Open
 
