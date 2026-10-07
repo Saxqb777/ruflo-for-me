@@ -2,6 +2,7 @@
 import { createEngine } from './engine.js';
 import { createScene } from './scene.js';
 import { createFlaps, setFlapText, flapAdvance, createAudio } from './board.js';
+import { createJobs } from './jobs.js';
 
 const $ = (id) => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -54,6 +55,8 @@ function loadCloud() {
   poll(); cloudTimer = setInterval(poll, 2000);
 }
 $('keyForm').addEventListener('submit', (e) => { e.preventDefault(); keySet($('key').value.trim()); $('key').value = ''; loadCloud(); });
+/* The Factory panel: only where the workshop's job board is, which is the local server. */
+const factory = createJobs({ section: $('factory'), form: $('jobForm'), list: $('jobList'), status: $('jobStatus'), enabled: isLoop && location.protocol !== 'file:' });
 function loadReplay(events, label, meta) {
   resetEngine(label, meta); events.sort((a, b) => a.t - b.t).forEach((e) => engine.push(e));
   T.mode = 'replay'; T.loop = label === 'DEMO'; const b = bounds(); T.now = b.t0; T.playing = true; T.live = false; $('live').hidden = true; $('srcName').textContent = label;
@@ -104,6 +107,22 @@ $('live').onclick = () => { T.live = true; T.playing = true; };
 range.addEventListener('input', () => { const b = bounds(); T.now = b.t0 + (Number(range.value) / 1000) * (b.t1 - b.t0); T.live = false; lastNow = T.now; lastFeedN = -1; });
 document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; if (e.code === 'Space') { e.preventDefault(); $('play').click(); } if (e.key === 'ArrowRight') { T.now += 2000; T.live = false; lastFeedN = -1; } if (e.key === 'ArrowLeft') { T.now -= 2000; T.live = false; lastFeedN = -1; } if (e.key === 'Escape') select(null); });
 
+/* The "waiting for a yes" list is rebuilt only when its content changes, never per frame: a button that is
+   replaced between mouse-down and mouse-up never receives its click. Countdowns update in place. */
+let yesSig = '';
+function renderYes(notes) {
+  const sig = notes.map((n) => { const q = n.a.startsWith('job.') ? factory.question(n.a.slice(4)) : null; return n.a + '|' + n.text + '|' + (q ? q.options.join(',') : ''); }).join(';');
+  if (sig !== yesSig) {
+    yesSig = sig; yesEl.replaceChildren();
+    if (!notes.length) { const d = document.createElement('div'); d.className = 'none'; d.textContent = 'none'; yesEl.appendChild(d); }
+    notes.forEach((n) => { const d = document.createElement('div'); d.className = 'yes-item'; d.innerHTML = '<span class="who"></span><span class="cd"></span><span class="txt"></span>'; d.children[0].textContent = n.a; d.children[2].textContent = n.text;
+      const q = n.a.startsWith('job.') ? factory.question(n.a.slice(4)) : null;
+      if (q) { const row = document.createElement('div'); row.className = 'yes-opts'; (q.options || []).forEach((o) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = o; b.onclick = () => factory.answer(n.a.slice(4), o); row.appendChild(b); }); const more = document.createElement('button'); more.type = 'button'; more.textContent = 'answer in Factory'; more.onclick = () => $('factory').scrollIntoView({ behavior: 'smooth' }); row.appendChild(more); d.appendChild(row); }
+      yesEl.appendChild(d); });
+  }
+  const items = yesEl.querySelectorAll('.yes-item .cd'); notes.forEach((n, i) => { if (items[i]) { const s = n.t1 === Infinity ? 'waiting' : mmss((n.t1 - T.now) / 1000); if (items[i].textContent !== s) items[i].textContent = s; } });
+}
+
 /* ---- frame ---- */
 function frame(ts) {
   const dt = Math.min(0.1, (ts - lastTs) / 1000); lastTs = ts;
@@ -125,8 +144,7 @@ function frame(ts) {
     lastFeedN = vw.feedN; const vis = engine.feed.filter((x) => x.t <= T.now).slice(-ROWS).reverse();
     for (let r = 0; r < ROWS; r++) { const e = vis[r]; if (!e) { setFlapText(rowsF[r], '', 'dim', true); continue; } const line = `${clockStr(e.t).slice(0, 5)} ${String(e.who).slice(0, 3).padEnd(3, ' ')} ${e.text}`; const cls = e.lv === 'warn' || e.lv === 'bad' ? 'warn' : e.lv === 'ok' ? 'ok' : e.lv === 'move' ? 'move' : e.lv === 'in' || e.lv === 'dim' ? 'dim' : ''; setFlapText(rowsF[r], line.slice(0, COLS), cls, true); }
   }
-  yesEl.replaceChildren(); if (!vw.notes.length) { const d = document.createElement('div'); d.className = 'none'; d.textContent = 'none'; yesEl.appendChild(d); }
-  vw.notes.forEach((n) => { const d = document.createElement('div'); d.className = 'yes-item'; d.innerHTML = '<span class="who"></span><span class="cd"></span><span class="txt"></span>'; d.children[0].textContent = n.a; d.children[1].textContent = n.t1 === Infinity ? 'waiting' : mmss((n.t1 - T.now) / 1000); d.children[2].textContent = n.text; yesEl.appendChild(d); });
+  renderYes(vw.notes);
   if (selected) renderCard(vw);
   requestAnimationFrame(frame);
 }

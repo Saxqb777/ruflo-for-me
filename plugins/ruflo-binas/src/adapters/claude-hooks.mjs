@@ -7,9 +7,11 @@ const SHIP_RE = /\bgit\s+push\b|\bgh\s+pr\s+create\b|\bnpm\s+publish\b|\bvercel\
 const PERMISSION_RE = /permission|approve|allow|waiting for your input|needs your/i;
 const short = (s, n = 72) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
-export function emptyState(sessionId) {
+/** `job` ({ id, name }) binds the session to a factory job: the coordinator is the job's peg, the first paper is the job. */
+export function emptyState(sessionId, job = null) {
   const sid = String(sessionId || 'solo').replace(/[^a-z0-9]/gi, '').slice(0, 4).toLowerCase() || 'solo';
-  return { v: 1, sid, main: `me-${sid}`, n: 0, paper: null, subs: {}, subN: 0, blocked: false, mainWorking: false, lastStart: 0, joined: false };
+  const jobId = job && job.id ? String(job.id).replace(/[^a-z0-9_-]/gi, '').slice(0, 40) : null;
+  return { v: 1, sid, main: jobId ? `job.${jobId}` : `me-${sid}`, mainName: jobId ? String(job.name || 'JOB').slice(0, 10) : 'ME', paperBase: jobId || `p${sid}`, n: 0, paper: null, subs: {}, subN: 0, blocked: false, mainWorking: false, lastStart: 0, joined: false };
 }
 
 export function describeTool(name, input = {}) {
@@ -28,8 +30,9 @@ export function describeTool(name, input = {}) {
 
 function joinMain(state, now, events) {
   if (state.joined) return;
-  state.joined = true; events.push({ t: now, kind: 'join', agent: state.main, role: 'coordinator', name: 'ME', source: 'claude-hooks' });
+  state.joined = true; events.push({ t: now, kind: 'join', agent: state.main, role: 'coordinator', name: state.mainName || 'ME', source: 'claude-hooks' });
 }
+const nextPaper = (state) => { state.n += 1; return state.n === 1 && state.main.startsWith('job.') ? state.paperBase : `${state.paperBase}-${state.n}`; };
 function unblock(state, now, events, text) {
   if (!state.blocked) return;
   state.blocked = false; events.push({ t: now, kind: 'unblock', agent: state.main, text: text || 'yes', source: 'claude-hooks' });
@@ -55,7 +58,7 @@ export function mapHook(payload, state, nowMs = Date.now()) {
 
     case 'UserPromptSubmit': {
       joinMain(state, nowMs, events); unblock(state, nowMs, events, 'you replied');
-      state.n += 1; state.paper = `p${state.sid}-${state.n}`;
+      state.paper = nextPaper(state);
       events.push({ t: nowMs, kind: 'arrive', paper: state.paper, to: state.main, text: short(p.prompt, 90), source: 'claude-hooks' });
       startMain(state, nowMs + 1, events, 'reading the request', true);
       break;
@@ -67,7 +70,7 @@ export function mapHook(payload, state, nowMs = Date.now()) {
         state.subN += 1;
         const base = String(input.name || input.subagent_type || 'agent').replace(/[^a-z0-9_-]/gi, '').slice(0, 24).toLowerCase() || 'agent';
         const id = `${base}.${state.sid}.${state.subN}`; const role = String(input.subagent_type || base);
-        const paper = `${state.paper || 'p' + state.sid}.${state.subN}`; const text = short(input.description || input.prompt, 90);
+        const paper = `${state.paper || state.paperBase}.${state.subN}`; const text = short(input.description || input.prompt, 90);
         const key = String(p.tool_use_id || `${base}-${state.subN}`); state.subs[key] = { id, paper, role, t: nowMs };
         events.push({ t: nowMs, kind: 'join', agent: id, role, name: base, source: 'claude-hooks' });
         events.push({ t: nowMs + 1, kind: 'handoff', agent: state.main, role: 'coordinator', to: id, toRole: role, paper, text, source: 'claude-hooks' });
@@ -89,7 +92,7 @@ export function mapHook(payload, state, nowMs = Date.now()) {
         }
       } else if (tool === 'Bash' && !failed && SHIP_RE.test(String(input.command || ''))) {
         events.push({ t: nowMs, kind: 'ship', agent: state.main, role: 'coordinator', paper: state.paper || undefined, text: short(input.description || input.command, 60), source: 'claude-hooks' });
-        state.n += 1; state.paper = `p${state.sid}-${state.n}`; // the next work is a new paper
+        state.paper = nextPaper(state); // the next work is a new paper
       }
       break;
     }

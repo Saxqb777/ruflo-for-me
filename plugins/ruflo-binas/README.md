@@ -86,6 +86,30 @@ claude --plugin-dir plugins/ruflo-binas
 
 The hook still writes the local log first; the cloud copy is capped at 1.5 s and never blocks a tool. A `?floor=<name>` on the page and on the ingest URL keeps separate floors apart in one table.
 
+## The workshop (the factory)
+
+Binas builds things, not just shows them. A job is a paper on the floor: you describe what to build, the workshop runs one headless Claude Code session per turn with the Ruflo pipeline, parks when the coordinator needs a decision, resumes with your answer, and ships.
+
+```bash
+node bin/binas.mjs job add --title "Barber booking" --brief "A booking page with time slots for a barber shop. Done means a customer can pick a slot and get a confirmation." --ship pr --budget 5
+node bin/binas.mjs run            # the workshop: builds queued jobs, one at a time, with the Claude login on this machine
+node bin/binas.mjs jobs           # states, questions, links
+node bin/binas.mjs answer <jobId> "yes, dark mode by default"
+```
+
+Or do all of it from the Factory panel on the local floor (`binas serve`): the form queues jobs, cards show state, cost and links, and a question shows its options as buttons.
+
+| Setting | Default | What it means |
+|---|---|---|
+| fuel | the `claude` login on the machine | the API key is stripped from job sessions; set `billing: "api"` on a job to allow it |
+| autonomy | `ask` | edits auto-accepted, a fixed tool allowlist, no `git push`; `full` skips permissions (only in a container) |
+| sandbox | `none` | `--sandbox docker` runs each turn in a container that sees only the work dir, `~/.claude` and the plugin (untested here, no Docker in the build session) |
+| budget | $5 per turn | `--max-budget-usd` on the session |
+| ship | `pr` | commit leftovers, push the branch, open a pull request with `gh`; `branch` pushes only; `none` keeps it local. No remote means branch only, said so in the log |
+| project | new | a fresh repo under `projects/<slug>` with a CLAUDE.md; `--project <path>` works in a git worktree on branch `binas/<jobId>` |
+
+The coordinator prompt ends a turn with a fenced `binas-ask` block to ask you something, or a `binas-done` block with a summary and how to run it. Both are parsed by the runner; anything else is treated as done with a note.
+
 ## Replay
 
 Drop any `.jsonl` of events onto the floor to replay it. The scrubber, arrow keys and speeds work on live feeds too: drag back to review, press Back to live to catch up.

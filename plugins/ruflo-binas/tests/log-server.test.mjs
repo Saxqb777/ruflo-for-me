@@ -63,6 +63,12 @@ test('the server serves the page, the web files, the demo, info and an SSE backl
     const demo = await get('/demo/shift-014.jsonl'); assert.equal(demo.status, 200); assert.ok(demo.text.split('\n').length > 60);
     assert.equal((await get('/web/../package.json')).status, 404);
     const info = JSON.parse((await get('/api/info')).text); assert.equal(info.events, 1); assert.equal(info.contract, 'binas.event/0.1');
+    const post = async (p, body) => { const r = await fetch(s.url.replace(/\/$/, '') + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json() }; };
+    const bad = await post('/api/jobs', { title: 'x' }); assert.equal(bad.status, 400); assert.match(bad.body.error, /brief/);
+    const made = await post('/api/jobs', { title: 'Board test', brief: 'Build a thing.', ship: 'branch' }); assert.equal(made.status, 201); assert.equal(made.body.state, 'queued'); assert.equal(made.body.ship, 'branch');
+    const listed = JSON.parse((await get('/api/jobs')).text); assert.equal(listed.jobs.length, 1); assert.equal(listed.jobs[0].id, made.body.id);
+    assert.equal((await get('/api/jobs/' + made.body.id)).status, 200); assert.equal((await get('/api/jobs/nope')).status, 404);
+    const ans = await post('/api/answer', { jobId: made.body.id, text: 'yes' }); assert.equal(ans.status, 400); assert.match(ans.body.error, /not waiting/);
     const ctrl = new AbortController();
     const res = await fetch(s.url + 'events', { signal: ctrl.signal });
     const reader = res.body.getReader(); const { value } = await reader.read(); ctrl.abort();

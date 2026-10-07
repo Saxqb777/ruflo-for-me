@@ -32,6 +32,10 @@ for (const f of ['web/engine.js', 'web/scene.js', 'web/board.js', 'web/app.js', 
 step('vercel.json builds dist-cloud with no install step', () => { const v = JSON.parse(read('vercel.json')); return v.buildCommand === 'node scripts/build-cloud.mjs' && v.outputDirectory === 'dist-cloud' && v.framework === null; });
 step('cloud functions fail closed: every handler checks the key before touching the database', () => ['api/events.mjs', 'api/ingest.mjs'].every((f) => { const s = read(f); return s.indexOf('keyOk(') < s.indexOf('neonClient(') && s.includes('export default async function handler'); }));
 step('cloud reads the connection string only from the environment', () => !/postgres(ql)?:\/\/[^'"\s]+@/.test(read('src/cloud/neon.mjs') + read('api/events.mjs') + read('api/ingest.mjs') + read('api/info.mjs')));
+for (const f of ['src/factory/jobs.mjs', 'src/factory/prompt.mjs', 'src/factory/runner.mjs', 'src/factory/ship.mjs', 'web/jobs.js', 'tests/fixtures/fake-claude.mjs'])
+  step(`${f} exists and is under 500 lines`, () => existsSync(join(ROOT, f)) && lines(f) <= 500);
+step('workshop strips the API key from job sessions and never lets a session push', () => { const r = read('src/factory/runner.mjs'); return r.includes('delete env.ANTHROPIC_API_KEY') && !/['"]Bash\(git push/.test(r) && read('src/factory/prompt.mjs').includes('Never push'); });
+step('binas help runs and lists the workshop commands', () => { const r = spawnSync(process.execPath, ['bin/binas.mjs', 'help'], { cwd: ROOT, encoding: 'utf8' }); return r.status === 0 && /binas run/.test(r.stdout) && /binas answer/.test(r.stdout); });
 
 step('demo shift has 60+ events, 3 shipments, a block and a fail', () => {
   const evs = read('demo/shift-014.jsonl').split('\n').filter(Boolean).map((l) => JSON.parse(l));

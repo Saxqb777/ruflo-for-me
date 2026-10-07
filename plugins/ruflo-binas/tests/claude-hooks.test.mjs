@@ -68,6 +68,15 @@ test('a permission notification raises the flag until the next tool runs', () =>
   assert.equal(state.blocked, false);
 });
 
+test('a factory job binds the session: the coordinator is the job peg and the first paper is the job', () => {
+  let state = emptyState(SID, { id: 'job_abc', name: 'TINY APP' }); const all = [];
+  for (const p of [{ hook_event_name: 'UserPromptSubmit', prompt: 'build' }, { hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 't1', tool_input: { subagent_type: 'coder' } }]) { const r = mapHook({ session_id: SID, ...p }, state, 5000); state = r.state; all.push(...r.events); }
+  assert.equal(all[0].agent, 'job.job_abc'); assert.equal(all[0].name, 'TINY APP');
+  assert.equal(all[1].paper, 'job_abc');
+  assert.equal(all.find((e) => e.kind === 'handoff').paper, 'job_abc.1');
+  assert.equal(emptyState('s', { id: '../x' }).main, 'job.x');
+});
+
 test('SessionEnd clears the floor; unknown events do nothing', () => {
   const { events, state } = run([
     { hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 't', tool_input: { subagent_type: 'tester' } },

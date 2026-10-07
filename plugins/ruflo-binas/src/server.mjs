@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { readEvents, followEvents, logPath } from './log.mjs';
 import { readMissions } from './adapters/missions.mjs';
 import { CONTRACT, byTime } from './events.mjs';
+import { makeJob, saveJob, listJobs, loadJob, answerJob, summarize } from './factory/jobs.mjs';
+
+const readBody = (req) => new Promise((resolve) => { let d = ''; req.setEncoding('utf8'); req.on('data', (c) => { d += c; if (d.length > 1e6) req.destroy(); }); req.on('end', () => resolve(d)); req.on('error', () => resolve(d)); });
+const sendJson = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PLUGIN_ROOT = resolve(HERE, '..');
@@ -39,10 +43,15 @@ export function startServer({ root = process.cwd(), port = 4777, host = '127.0.0
   }, 2000);
   const heartbeat = setInterval(() => { for (const c of clients) c.write(': keep-alive\n\n'); }, 15000);
 
-  const server = createServer((req, res) => {
-    if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
+  const server = createServer(async (req, res) => {
     const url = new URL(req.url || '/', 'http://localhost');
     const p = url.pathname;
+    /* the local job board: the page and the workshop share the job folder */
+    if (p === '/api/jobs' && req.method === 'GET') return sendJson(res, 200, { jobs: listJobs(root).map(summarize) });
+    if (p === '/api/jobs' && req.method === 'POST') { try { const body = JSON.parse(await readBody(req) || '{}'); const job = saveJob(root, makeJob(body, root)); return sendJson(res, 201, summarize(job)); } catch (e) { return sendJson(res, 400, { error: e.message }); } }
+    if (p.startsWith('/api/jobs/') && req.method === 'GET') { const job = loadJob(root, p.slice(10)); return job ? sendJson(res, 200, job) : sendJson(res, 404, { error: 'no such job' }); }
+    if (p === '/api/answer' && req.method === 'POST') { try { const body = JSON.parse(await readBody(req) || '{}'); return sendJson(res, 200, summarize(answerJob(root, body.jobId, body.text))); } catch (e) { return sendJson(res, 400, { error: e.message }); } }
+    if (req.method !== 'GET') { res.writeHead(405); return res.end(); }
     if (p === '/' || p === '/index.html') {
       if (demoDefault && !url.searchParams.has('src')) { res.writeHead(302, { location: '/?src=demo' }); return res.end(); }
       return serveFile(res, join(PLUGIN_ROOT, 'web'), '/index.html');

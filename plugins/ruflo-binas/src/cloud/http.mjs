@@ -4,6 +4,12 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 const FLOOR_RE = /^[a-z0-9][a-z0-9_-]{0,39}$/i;
 export const floorOf = (q) => { const f = String((q && q.floor) || 'default'); return FLOOR_RE.test(f) ? f : 'default'; };
 
+/** The key a floor expects: BINAS_KEY_<FLOOR> for a named floor, BINAS_KEY for the default floor. */
+export function expectedKey(floor, env = process.env) {
+  const named = env['BINAS_KEY_' + String(floor || 'default').toUpperCase().replace(/[^A-Z0-9]/g, '_')];
+  if (named) return named;
+  return floor === 'default' ? env.BINAS_KEY : undefined;
+}
 export function keyOk(given, expected) {
   if (!expected) return false;
   const a = createHash('sha256').update(String(given || '')).digest(), b = createHash('sha256').update(String(expected)).digest();

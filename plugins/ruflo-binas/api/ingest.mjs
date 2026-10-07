@@ -2,13 +2,13 @@
 // Hooks and other writers send events here. Everything is normalized before it touches the table.
 import { normalize } from '../src/events.mjs';
 import { neonClient, ensureSchema, insertEvents } from '../src/cloud/neon.mjs';
-import { floorOf, keyOk, keyFrom, json, readBody, parseBody, queryOf } from '../src/cloud/http.mjs';
+import { floorOf, keyOk, keyFrom, expectedKey, json, readBody, parseBody, queryOf } from '../src/cloud/http.mjs';
 
 export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') return json(res, 405, { error: 'POST only' });
     const q = queryOf(req); req.query = q;
-    if (!keyOk(keyFrom(req), process.env.BINAS_KEY)) return json(res, 401, { error: 'floor key required', hint: 'send x-binas-key' });
+    if (!keyOk(keyFrom(req), expectedKey(floorOf(q)))) return json(res, 401, { error: 'floor key required', hint: 'send x-binas-key' });
     const raw = parseBody(await readBody(req));
     const events = raw.map(normalize).filter(Boolean);
     if (!events.length) return json(res, 400, { error: 'no valid events', received: raw.length });

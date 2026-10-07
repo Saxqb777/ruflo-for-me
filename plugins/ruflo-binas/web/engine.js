@@ -138,7 +138,7 @@ export function createEngine() {
   function lastWorking(a) { for (let i = a.states.length - 1; i >= 0; i--) if (a.states[i].s === 'working') return a.states[i]; return null; }
 
   const H = {
-    join(e) { const a = ensureAgent(e.agent, e.role, e.t, e.name); feedLine(e.t, 'join', a.id, `${a.name} joined · ${a.role}`); },
+    join(e) { const existed = agents.has(e.agent); const a = ensureAgent(e.agent, e.role, e.t, e.name); if (!a || existed) return; feedLine(e.t, 'join', a.id, `${a.name} joined · ${a.role}`); },
     leave(e) { const a = agents.get(e.agent); if (!a) return; a.left = e.t; setState(a, e.t, 'gone', '—'); feedLine(e.t, 'leave', a.id, `${a.name} left`); },
     arrive(e) {
       const p = ensurePaper(e.paper, e.text, e.t);

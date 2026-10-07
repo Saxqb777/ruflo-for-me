@@ -48,7 +48,16 @@ button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(
 .keyform{display:flex;gap:4px}.keyform input{font:12px var(--mono);padding:4px 8px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);width:150px;border-radius:0}
 .hint{position:absolute;right:12px;bottom:12px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);background:var(--paper);padding:2px 6px}
 .nogl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--ink-2)}
-.panel{border-left:2px solid var(--ink);display:grid;grid-template-rows:auto auto minmax(0,1fr);min-height:0;min-width:0}
+.panel{border-left:2px solid var(--ink);display:grid;grid-template-rows:auto auto auto minmax(0,1fr);min-height:0;min-width:0}
+.jobform{display:flex;flex-direction:column;gap:6px}.jobform input,.jobform textarea,.jobform select{font:12.5px var(--display);padding:6px 8px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);border-radius:0;min-width:0;width:100%}
+.jobform textarea{resize:vertical;font-family:var(--display)}.jobrow{display:grid;grid-template-columns:1fr auto 64px auto;gap:6px;align-items:stretch}.jobrow select{font-size:11px}
+.cards{max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-top:8px}.cards .none{color:var(--ink-3);font-size:12px}
+.jobcard{border:2px solid var(--ink);padding:6px 8px;background:var(--sheet);display:flex;flex-direction:column;gap:3px}
+.jobcard.st-blocked{border-color:var(--flare)}.jobcard.st-shipped{border-color:var(--green)}.jobcard.st-failed{border-color:var(--flare)}
+.jh{display:flex;gap:8px;align-items:baseline}.jm{font-family:var(--mono)}.jt{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.js{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.jmeta{font-size:11px;color:var(--ink-3)}.mono{font-family:var(--mono)}.jsum{font-size:12px}.jerr{font-size:12px;color:var(--flare-text)}.jlinks{font-size:12px}.jlinks a{color:var(--blue-text)}
+.jq{border-top:1px solid var(--rule);padding-top:6px;display:flex;flex-direction:column;gap:6px}.jqt{font-size:13px;color:var(--flare-text)}.jopts,.yes-opts{display:flex;flex-wrap:wrap;gap:4px}.yes-opts{grid-column:1/-1;margin-top:4px}
+.jans{display:flex;gap:4px}.jans input{flex:1;min-width:0;font:12px var(--mono);padding:4px 8px;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);border-radius:0}
 .panel section{padding:10px 12px;border-bottom:1px solid var(--rule);min-width:0}.panel section:last-child{border-bottom:0;min-height:0;overflow:auto}
 .panel h2{margin:0 0 6px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:600;display:flex;justify-content:space-between}
 .board{background:#101016;padding:8px;display:flex;flex-direction:column;gap:3px;border:2px solid #000}
@@ -68,7 +77,7 @@ button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(
 .scrub input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:12px;height:18px;background:var(--paper);border:2px solid var(--ink);border-radius:0;cursor:ew-resize}
 .scrub input[type=range]::-moz-range-thumb{width:12px;height:18px;background:var(--paper);border:2px solid var(--ink);border-radius:0;cursor:ew-resize}
 .scrub .el{font-family:var(--mono);font-size:13px;min-width:92px}.scrub .note{color:var(--ink-3)}
-@media (max-width:900px){body{overflow:auto}.app{height:auto;grid-template-rows:auto auto auto}.main{grid-template-columns:1fr}.stage{height:62vh;min-height:360px}.panel{border-left:0;border-top:2px solid var(--ink);grid-template-rows:auto auto auto}.scrub{position:sticky;bottom:0;background:var(--paper);border-top:2px solid var(--ink)}.row .cell{font-size:9.5px;height:16px;line-height:16px}}
+@media (max-width:900px){body{overflow:auto}.app{height:auto;grid-template-rows:auto auto auto}.main{grid-template-columns:1fr}.stage{height:62vh;min-height:360px}.panel{border-left:0;border-top:2px solid var(--ink);grid-template-rows:auto auto auto auto}.jobrow{grid-template-columns:1fr 1fr}.scrub{position:sticky;bottom:0;background:var(--paper);border-top:2px solid var(--ink)}.row .cell{font-size:9.5px;height:16px;line-height:16px}}
 </style>
 </head>
 <body>
@@ -94,6 +103,15 @@ button:disabled{opacity:.35;cursor:default}button:disabled:hover{background:var(
     </section>
     <aside class="panel">
       <section><h2><span>Departures</span><span>the feed, newest first</span></h2><div class="board" id="board" aria-live="off"></div></section>
+      <section id="factory" class="factory">
+        <h2><span>Factory</span><span id="jobStatus">the workshop builds what you describe</span></h2>
+        <form id="jobForm" class="jobform">
+          <input name="title" type="text" placeholder="What are we building? (short title)" required maxlength="80" aria-label="Job title">
+          <textarea name="brief" placeholder="Describe it like you would to a colleague: what it does, who it is for, what done looks like." required rows="3" maxlength="8000" aria-label="Brief"></textarea>
+          <div class="jobrow"><input name="project" type="text" placeholder="existing project path (empty = new project)" aria-label="Project path"><select name="ship" aria-label="Ship as"><option value="pr">ship: pull request</option><option value="branch">ship: branch</option><option value="none">ship: keep local</option></select><input name="budget" type="number" min="0.5" max="200" step="0.5" value="5" aria-label="Spend cap in dollars" title="spend cap per turn, dollars"><button type="submit">Queue job</button></div>
+        </form>
+        <div id="jobList" class="cards"></div>
+      </section>
       <section><h2>Waiting for a yes</h2><div id="yes"><div class="none">none</div></div></section>
       <section id="who"><h2>Who</h2>
         <div class="legend" id="legend">
