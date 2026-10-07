@@ -23,7 +23,7 @@ export function createScene(THREE, canvas, stage, labelsEl) {
 
   /* ---- ground: the blueprint ---- */
   const gcan = document.createElement('canvas'); gcan.width = 2400; gcan.height = 1500;
-  const meta = { shift: '—', date: '', source: 'NO FEED YET', title: 'DOC LEDGER CO.' };
+  const meta = { shift: '—', date: '', source: 'NO FEED YET', title: 'BINAS WORKS' };
   function drawGround() {
     const c = gcan.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#E9E7E1'; c.fillRect(0, 0, 2400, 1500);
     c.save(); c.translate(300, 210); c.scale(1.5, 1.5); c.fillStyle = '#F7F6F3'; c.fillRect(0, 0, 1200, 720);

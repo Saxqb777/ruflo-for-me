@@ -10,35 +10,35 @@
 {"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C3","role":"coder","name":"C3","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C4","role":"coder","name":"C4","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"RL","role":"release","name":"RL","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.600Z","kind":"arrive","source":"demo","paper":"P1","to":"QN","text":"Paddle webhook: retry on 5xx","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:00.600Z","kind":"arrive","source":"demo","paper":"P1","to":"QN","text":"Payments: retry webhook on 5xx","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:02.000Z","kind":"claim","source":"demo","agent":"QN","to":"R1","paper":"P1","text":"needs research first","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:05.000Z","kind":"start","source":"demo","agent":"R1","paper":"P1","text":"reading Paddle retry + idempotency rules","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:06.500Z","kind":"arrive","source":"demo","paper":"P2","to":"QN","text":"Receipts: private blobs, signed reads","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:05.000Z","kind":"start","source":"demo","agent":"R1","paper":"P1","text":"reading webhook retry + idempotency rules","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:06.500Z","kind":"arrive","source":"demo","paper":"P2","to":"QN","text":"Uploads: private files, signed links","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:08.000Z","kind":"claim","source":"demo","agent":"QN","to":"AR","paper":"P2","text":"security, straight to drafting","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:10.812Z","kind":"start","source":"demo","agent":"AR","paper":"P2","text":"drafting signed blob reads, 15 min expiry","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:10.812Z","kind":"start","source":"demo","agent":"AR","paper":"P2","text":"drafting signed file reads, 15 min expiry","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:12.500Z","kind":"done","source":"demo","agent":"R1","paper":"P1","text":"retry schedule + dedupe key","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:13.500Z","kind":"handoff","source":"demo","agent":"R1","to":"AR","paper":"P1","text":"research notes","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:15.500Z","kind":"arrive","source":"demo","paper":"P3","to":"QN","text":"Records: totals over full result","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:15.500Z","kind":"arrive","source":"demo","paper":"P3","to":"QN","text":"Dashboard: totals over the full query","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:17.000Z","kind":"claim","source":"demo","agent":"QN","to":"C3","paper":"P3","text":"small fix, no design needed","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:19.000Z","kind":"done","source":"demo","agent":"AR","paper":"P2","text":"plan: private store, signed GET, cleanup on delete","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:20.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C1","paper":"P2","text":"blob access plan","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:20.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C1","paper":"P2","text":"file access plan","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:20.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"totals: sum the query, not the page","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:23.000Z","kind":"start","source":"demo","agent":"AR","paper":"P1","text":"drafting webhook handler contract","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:24.000Z","kind":"start","source":"demo","agent":"C1","paper":"P2","text":"private blobs + signed reads","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:24.000Z","kind":"start","source":"demo","agent":"C1","paper":"P2","text":"private files + signed reads","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:28.000Z","kind":"done","source":"demo","agent":"AR","paper":"P1","text":"contract ready","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:29.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C2","paper":"P1","text":"webhook contract","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:31.765Z","kind":"start","source":"demo","agent":"C2","paper":"P1","text":"webhook retry + idempotency key","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:32.000Z","kind":"block","source":"demo","agent":"C1","text":"flip existing receipts to private too?","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:32.000Z","kind":"block","source":"demo","agent":"C1","text":"flip existing uploads to private too?","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:33.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"footer uses server total","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:34.500Z","kind":"handoff","source":"demo","agent":"C3","to":"T1","paper":"P3","text":"totals fix","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:37.000Z","kind":"start","source":"demo","agent":"T1","paper":"P3","text":"testing totals across 3 pages","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:41.000Z","kind":"fail","source":"demo","agent":"T1","paper":"P3","text":"savings footer still sums the page","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:41.000Z","kind":"fail","source":"demo","agent":"T1","paper":"P3","text":"summary card still sums the page","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:42.000Z","kind":"handoff","source":"demo","agent":"T1","to":"C3","paper":"P3","text":"back with repro","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:44.000Z","kind":"unblock","source":"demo","agent":"C1","text":"yes, migrate existing receipts too","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:45.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"fix savings footer as well","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:44.000Z","kind":"unblock","source":"demo","agent":"C1","text":"yes, migrate existing uploads too","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:45.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"fix the summary card as well","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:48.000Z","kind":"done","source":"demo","agent":"C2","paper":"P1","text":"handler + 3 unit tests","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:49.000Z","kind":"handoff","source":"demo","agent":"C2","to":"T2","paper":"P1","text":"ready for replay test","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:51.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"both footers fixed","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:51.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"both totals fixed","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:52.500Z","kind":"handoff","source":"demo","agent":"C3","to":"T1","paper":"P3","text":"retest","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:52.792Z","kind":"start","source":"demo","agent":"T2","paper":"P1","text":"replaying 5xx webhooks","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:30:54.725Z","kind":"start","source":"demo","agent":"T1","paper":"P3","text":"retesting totals","contract":"binas.event/0.1"}
@@ -53,15 +53,15 @@
 {"t":"2026-10-07T09:31:03.000Z","kind":"done","source":"demo","agent":"RV","paper":"P3","text":"approved","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:04.000Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P3","text":"release","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:05.000Z","kind":"start","source":"demo","agent":"RV","paper":"P1","text":"review: webhook handler","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:06.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P3","text":"Records: totals over full result","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:31:06.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P3","text":"Dashboard: totals over the full query","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:08.500Z","kind":"done","source":"demo","agent":"RV","paper":"P1","text":"approved","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:09.500Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P1","text":"release","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:10.000Z","kind":"done","source":"demo","agent":"T1","paper":"P2","text":"pass, expiry enforced","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:11.000Z","kind":"handoff","source":"demo","agent":"T1","to":"RV","paper":"P2","text":"for review","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:12.000Z","kind":"ship","source":"demo","agent":"RL","paper":"P1","text":"Paddle webhook: retry on 5xx","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:13.500Z","kind":"start","source":"demo","agent":"RV","paper":"P2","text":"security review: blob access","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:16.000Z","kind":"block","source":"demo","agent":"RV","text":"retention: purge receipts after 7 years?","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:22.000Z","kind":"unblock","source":"demo","agent":"RV","text":"yes, 7 years, then purge","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:31:12.000Z","kind":"ship","source":"demo","agent":"RL","paper":"P1","text":"Payments: retry webhook on 5xx","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:31:13.500Z","kind":"start","source":"demo","agent":"RV","paper":"P2","text":"security review: file access","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:31:16.000Z","kind":"block","source":"demo","agent":"RV","text":"retention: purge old uploads after a year?","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:31:22.000Z","kind":"unblock","source":"demo","agent":"RV","text":"yes, one year, then purge","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:23.000Z","kind":"done","source":"demo","agent":"RV","paper":"P2","text":"approved with retention rule","contract":"binas.event/0.1"}
 {"t":"2026-10-07T09:31:24.000Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P2","text":"release","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:26.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P2","text":"Receipts: private blobs, signed reads","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:31:26.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P2","text":"Uploads: private files, signed links","contract":"binas.event/0.1"}

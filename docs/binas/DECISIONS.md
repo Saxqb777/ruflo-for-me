@@ -30,16 +30,11 @@ One line per decision, newest at the bottom. The next session reads this first.
 | 2026-10-07 | Workshop v1 shipped: job store, pipeline prompt with `binas-ask` / `binas-done` fences, runner (worktree, headless session, ask, answer, resume, ship), local job board on the page and the CLI. Cloud job board, users, allowances, intake chat and Building view wait on Neon. | Neon connector still unauthorized; Doc Ledger's connection string on Vercel is a sealed secret no API can read. |
 
 | 2026-10-07 | Neon attached: project `binas` (`little-brook-04386070`, aws-us-east-1, Postgres 17), database `binas`, role `binas`, table `binas_events`. The connection string lives only in the Vercel project `binas` as a sealed `DATABASE_URL`. | Same AWS region as the Vercel functions (iad1). The owner re-authorized the Neon connector mid-session and its tools appeared. |
+| 2026-10-07 | Doc Ledger scrubbed from Binas: title block and eyebrow read BINAS WORKS, the demo shift builds neutral papers (payments webhook, private uploads, dashboard totals), plugin keyword `docledger` dropped, the brief rewritten for the factory. Doc Ledger's own pre-customer list (public receipt blobs, blobs never deleted, no rate limit) belongs with Doc Ledger, not here. | Owner: "why is docledger in topic" → "Scrub". |
 
 ## Open
 
 - Sound design beyond the synthesized set.
-- Whether customer-facing Binas is a paid tier of Doc Ledger or included.
 - Offline bundle of three.js (currently cdnjs).
-- The finance-floor room layout for docledger (Mailroom, Reading desk, Review desk, Ledger, Treasury, Archive, Dispatch).
-
-## Before any paying customer (docledger, not Binas)
-
-- Receipts are uploaded to Vercel Blob with public access. Make them private with signed reads.
-- Blobs are never deleted when an expense is deleted.
-- No rate limiting; no lockfile committed; page-only totals in the Records header and Savings footer.
+- Pegs walking between desks (paper moves, people sit, for now).
+- Per-floor API billing for paying users; "take it home" export to a user's own accounts.
