@@ -44,6 +44,8 @@ One line per decision, newest at the bottom. The next session reads this first.
 | 2026-10-08 | Previews deploy to a Vercel project named `binas-<floor>-<slug>`, created through the API and pinned with `.vercel/project.json`; `VERCEL_TEAM_ID` picks the scope. | Two floors building the same idea must never overwrite each other. |
 | 2026-10-08 | Plain words on the page: in line, being built, needs your answer, ready, stopped. Money shows only on the owner's floor; a tester sees "$X of building left this month". The owner can close a stuck project; closing a running one fails its turn rather than leaving a ghost. | Same reason. The tennis project was a test, not a product. |
 
+| 2026-10-08 | No hand-copied Vercel token. Live links use `VERCEL_TOKEN` if set, else the login a one-time `npx vercel login` stores on the machine; `binas run` offers that login itself when none is found. Flags given once (`--cloud`, `--key`, `--team`, `--github`) are saved to `~/.binas/config.json` (0600), so afterwards the workshop is `node bin/binas.mjs run`. | The owner pasted placeholder lines into zsh and nothing ran. The cloud session has no tool that reaches the owner's Mac and the Vercel connector cannot mint tokens, so the fix is to remove the step, not to do it for them. |
+
 ## Open
 
 - Sound design beyond the synthesized set.

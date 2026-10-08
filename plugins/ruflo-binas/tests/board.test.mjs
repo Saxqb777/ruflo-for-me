@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { createBoard, jobFromWork } from '../src/factory/board.mjs';
 import { createRunner, childEnv, defaultRoot, insidePlugin, PLUGIN_ROOT, PLUGIN_ROOT_ERROR, MACHINE_RE, SNAG } from '../src/factory/runner.mjs';
 import { saveJob } from '../src/factory/jobs.mjs';
-import { previewDeploy } from '../src/factory/preview.mjs';
+import { previewDeploy, vercelAuth, cliAuthPaths } from '../src/factory/preview.mjs';
+import { loadConfig, saveConfig, configPath } from '../src/factory/config.mjs';
+import { mkdirSync, statSync } from 'node:fs';
 import { shipJob } from '../src/factory/ship.mjs';
 import { coordinatorPrompt, DESIGN_RULES } from '../src/factory/prompt.mjs';
 import { readEvents } from '../src/log.mjs';
@@ -103,7 +105,7 @@ test('preview and ship are honest without tokens and parse the URL with them; a 
   const root = tmp();
   try {
     const job = { title: 'T', kind: 'web', workdir: root, branch: 'main', ship: 'branch', project: { slug: 'tiny-app' }, cloud: { floor: 't1' } };
-    assert.equal((await previewDeploy(job, { exec: okExec, env: {}, fetchImpl })).url, null);
+    assert.equal((await previewDeploy(job, { exec: okExec, env: {}, fetchImpl, home: root, plat: 'linux' })).url, null);
     assert.equal((await previewDeploy({ ...job, kind: 'cli' }, { exec: okExec, env: { VERCEL_TOKEN: 'v' }, fetchImpl })).notes[0], 'no screen, no preview');
     assert.match((await previewDeploy(job, { exec: okExec, env: { VERCEL_TOKEN: 'v' }, fetchImpl })).notes[0], /nothing deployable/);
     writeFileSync(join(root, 'index.html'), '<!doctype html>');
@@ -155,4 +157,36 @@ test('machine trouble never reaches a user as a question: a blocked block, a mac
     const swept = cloud2.updates.find((u) => u.turn === 23); assert.equal(swept.status, 'failed'); assert.match(swept.plain, /interrupted/); assert.equal(SNAG.includes('snag'), true);
     void stale;
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('live links without a hand-copied token: the Vercel CLI login on the machine is used, and the token never leaves the call', async () => {
+  const home = tmp();
+  try {
+    assert.equal(vercelAuth({}, { home, plat: 'darwin' }), null);
+    assert.ok(cliAuthPaths(home, 'darwin', {})[0].endsWith(join('Library', 'Application Support', 'com.vercel.cli', 'auth.json')));
+    const dir = join(home, 'Library', 'Application Support', 'com.vercel.cli'); mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'auth.json'), JSON.stringify({ token: 'cli-token-123456' }));
+    assert.deepEqual(vercelAuth({}, { home, plat: 'darwin' }), { token: 'cli-token-123456', source: 'your vercel login' });
+    assert.equal(vercelAuth({ VERCEL_TOKEN: 'env-token-999' }, { home, plat: 'darwin' }).source, 'VERCEL_TOKEN', 'an explicit token wins');
+    writeFileSync(join(dir, 'auth.json'), '{broken'); assert.equal(vercelAuth({}, { home, plat: 'darwin' }), null, 'a broken file is ignored, not fatal');
+    writeFileSync(join(dir, 'auth.json'), JSON.stringify({ token: 'cli-token-123456' }));
+    const work = join(home, 'site'); mkdirSync(work); writeFileSync(join(work, 'index.html'), '<!doctype html>');
+    const auths = []; const fetchImpl = async (url, init = {}) => { auths.push(init.headers.authorization); return { ok: true, status: 200, json: async () => ({ id: 'prj_1', accountId: 'a' }) }; };
+    let args = null; const exec = (cmd, a) => { args = a; return { ok: true, out: 'https://binas-t1-site.vercel.app', err: '', status: 0 }; };
+    const pv = await previewDeploy({ kind: 'web', workdir: work, project: { slug: 'site' }, cloud: { floor: 't1' } }, { exec, env: { VERCEL_TEAM_ID: 'team_1' }, fetchImpl, home, plat: 'darwin' });
+    assert.equal(pv.url, 'https://binas-t1-site.vercel.app'); assert.deepEqual(auths, ['Bearer cli-token-123456']);
+    assert.equal(args[args.indexOf('--token') + 1], 'cli-token-123456'); assert.ok(!args.includes('--scope'), 'a pinned project needs no --scope');
+    assert.ok(!pv.notes.join(' ').includes('cli-token'), 'the token never appears in notes');
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test('settings are remembered in ~/.binas/config.json, owner-only, known keys only', () => {
+  const home = tmp();
+  try {
+    assert.deepEqual(loadConfig(home), {});
+    saveConfig({ cloud: 'https://binas.vercel.app', key: 'k1', vercelTeamId: 'team_1', junk: 'x', githubOwner: '  ' }, home);
+    assert.deepEqual(loadConfig(home), { cloud: 'https://binas.vercel.app', key: 'k1', vercelTeamId: 'team_1' });
+    saveConfig({ key: 'k2' }, home); assert.equal(loadConfig(home).key, 'k2'); assert.equal(loadConfig(home).cloud, 'https://binas.vercel.app');
+    if (process.platform !== 'win32') assert.equal(statSync(configPath(home)).mode & 0o777, 0o600);
+  } finally { rmSync(home, { recursive: true, force: true }); }
 });

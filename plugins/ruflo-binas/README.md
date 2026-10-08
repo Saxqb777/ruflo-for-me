@@ -118,11 +118,10 @@ node bin/binas.mjs user new --username friend --display "Friend" --role tester -
 Run the workshop against the showroom on a machine with a Claude login:
 
 ```bash
-export BINAS_GITHUB_OWNER=<your GitHub user>   # new projects become private repos there (needs gh, logged in)
-export VERCEL_TOKEN=<token>                    # every web turn ends with a live link at binas-<floor>-<slug>.vercel.app
-export VERCEL_TEAM_ID=<team id>                # optional: deploy into a team instead of the token's personal scope
-node bin/binas.mjs run --cloud https://binas.vercel.app --key <the master key> [--sandbox docker]
+node bin/binas.mjs run --cloud https://binas.vercel.app --key <the master key> --team <vercel team id>
 ```
+
+The first run saves those flags to `~/.binas/config.json` (owner-only) and, if this machine has no Vercel login, opens `npx vercel login` in the browser once. After that the whole workshop is `node bin/binas.mjs run`. Every web turn ends with a live link at `binas-<floor>-<slug>.vercel.app`, deployed with that login (or `VERCEL_TOKEN` if set). Add `--github <user>` to push each project to a private repo (needs `gh`, logged in); `--no-preview` turns live links off.
 
 Projects and the log live under `~/binas` (or `--root <dir>`, or `BINAS_HOME`), never inside this plugin folder: Claude Code treats a loaded plugin's files as sensitive and refuses to write there, which the workshop detects and refuses up front.
 

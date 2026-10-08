@@ -3,7 +3,9 @@
 //   binas serve [--port 4777] [--root <dir>] [--open]   start the floor on loopback and follow the live feed
 //   binas demo  [--port 4777] [--open]                  same, landing on the recorded demo shift
 //   binas run   [--root <dir>] [--claude <bin>] [--sandbox docker] [--floor <name>] [--once]
-//               [--cloud <url> --key <master key>]      the workshop: build queued jobs, local then the cloud board
+//               [--cloud <url> --key <master key> --team <vercel team id>] [--no-preview]
+//                                                       the workshop: build queued jobs, local then the cloud board.
+//                                                       Flags given once are saved to ~/.binas/config.json.
 //   binas job add --title "…" --brief "…" [--project <path> | --slug <name>] [--ship pr|branch|none] [--budget 5] [--model <m>] [--autonomy ask|full]
 //   binas jobs                                          list jobs
 //   binas answer <jobId> "<text>"                       answer a job that is waiting for you
@@ -18,6 +20,8 @@ import { appendEvent, followEvents, readEvents } from '../src/log.mjs';
 import { makeJob, saveJob, listJobs, answerJob } from '../src/factory/jobs.mjs';
 import { createRunner, defaultRoot, insidePlugin, PLUGIN_ROOT_ERROR } from '../src/factory/runner.mjs';
 import { createBoard } from '../src/factory/board.mjs';
+import { loadConfig, saveConfig, configPath } from '../src/factory/config.mjs';
+import { vercelAuth } from '../src/factory/preview.mjs';
 import { hashPassword, newPassword, usernameOk } from '../src/cloud/auth.mjs';
 import { userInsertSql } from '../src/cloud/store.mjs';
 
@@ -56,11 +60,23 @@ switch (cmd) {
     const probe = spawnSync(bin, ['--version'], { encoding: 'utf8' });
     if (probe.error || probe.status !== 0) die(`cannot run "${bin}". Install Claude Code and log in (claude login), or pass --claude <path>.`, 1);
     if (insidePlugin(root)) die(PLUGIN_ROOT_ERROR, 1);
-    const cloudUrl = flag('--cloud', process.env.BINAS_CLOUD_URL || ''); const key = flag('--key', process.env.BINAS_KEY || '');
+    const cfg = loadConfig();
+    const cloudUrl = flag('--cloud', process.env.BINAS_CLOUD_URL || cfg.cloud || ''); const key = flag('--key', process.env.BINAS_KEY || cfg.key || '');
     if (cloudUrl && !key) die('--cloud needs --key (or BINAS_KEY): the master key of the showroom', 1);
+    const team = flag('--team', process.env.VERCEL_TEAM_ID || cfg.vercelTeamId || ''); if (team) process.env.VERCEL_TEAM_ID = team;
+    const ghOwner = flag('--github', process.env.BINAS_GITHUB_OWNER || cfg.githubOwner || ''); if (ghOwner) process.env.BINAS_GITHUB_OWNER = ghOwner;
+    const given = { cloud: flag('--cloud'), key: flag('--key'), vercelTeamId: flag('--team'), githubOwner: flag('--github') };
+    if (Object.values(given).some(Boolean)) { saveConfig(given); out(`saved your settings to ${configPath()} · next time just run: node bin/binas.mjs run`); }
+    if (!has('--no-preview') && !vercelAuth(process.env) && process.stdin.isTTY) {
+      out('One-time Vercel login, so finished sites get a live link. Your browser opens; confirm there and come back.');
+      const login = spawnSync('npx', ['--yes', 'vercel', 'login'], { stdio: 'inherit' });
+      if (login.status !== 0 || !vercelAuth(process.env)) out('Vercel login skipped or failed: builds still run, without live links. Try again any time with: npx vercel login');
+    }
+    const auth = has('--no-preview') ? null : vercelAuth(process.env);
+    if (!auth) process.env.BINAS_NO_PREVIEW = '1';
     const board = cloudUrl ? createBoard({ url: cloudUrl, key, floor: flag('--floor', 'all') }) : null;
     const runner = createRunner({ root, claude: { bin, prefixArgs: [] }, sandbox: flag('--sandbox', 'none'), floor: board ? null : flag('--floor', process.env.BINAS_FLOOR || null), board, log: out });
-    out(`Binas workshop  projects and log under ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key and host tokens stripped from sessions)\n  board    ${board ? board.url + ' (floor ' + flag('--floor', 'all') + ')' : 'local only (add --cloud <url> --key <key> for the showroom)'}\n  github   ${process.env.BINAS_GITHUB_OWNER ? 'repos under ' + process.env.BINAS_GITHUB_OWNER : 'no BINAS_GITHUB_OWNER: code stays on this machine'}\n  preview  ${process.env.VERCEL_TOKEN ? 'every web turn ends with a live link (binas-<floor>-<slug>.vercel.app)' : 'NO VERCEL_TOKEN: web projects get no live link. export VERCEL_TOKEN=… and restart'}\n  jobs     ${listJobs(root).length} on file`);
+    out(`Binas workshop  projects and log under ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key and host tokens stripped from sessions)\n  board    ${board ? board.url + ' (floor ' + flag('--floor', 'all') + ')' : 'local only (add --cloud <url> --key <key> for the showroom)'}\n  github   ${process.env.BINAS_GITHUB_OWNER ? 'repos under ' + process.env.BINAS_GITHUB_OWNER : 'code stays on this machine (add --github <user> to push private repos)'}\n  preview  ${auth ? `every web turn ends with a live link (via ${auth.source}${team ? ', team ' + team : ''})` : 'NO live links: run npx vercel login, then restart'}\n  jobs     ${listJobs(root).length} on file`);
     if (has('--once')) { runner.tick().then((j) => { out(j ? `worked on ${j.id} → ${j.state}` : 'nothing to do'); process.exit(0); }).catch((e) => die(e.message, 1)); }
     else { const stop = runner.start(Number(flag('--poll', 3000))); out('  watching for jobs · Ctrl-C to stop'); process.on('SIGINT', () => { stop(); process.exit(0); }); }
     break;
@@ -98,6 +114,6 @@ switch (cmd) {
     break;
   }
   default:
-    out(`binas — the office floor and the workshop\n\n  binas serve [--port 4777] [--root <dir>] [--open]\n  binas demo  [--port 4777] [--open]\n  binas run   [--root <dir>] [--claude <bin>] [--sandbox docker] [--floor <name>] [--once] [--cloud <url> --key <key>]\n  binas job add --title "…" --brief "…" [--project <path> | --slug <name>] [--ship pr|branch|none] [--budget 5] [--model <m>] [--autonomy ask|full]\n  binas jobs\n  binas answer <jobId> "<text>"\n  binas user new --username <u> --display "<name>" [--role owner|tester] [--floor <name>] [--allowance 25]\n  binas tail  [--root <dir>]\n  binas emit  '<json>' [--root <dir>]`);
+    out(`binas — the office floor and the workshop\n\n  binas serve [--port 4777] [--root <dir>] [--open]\n  binas demo  [--port 4777] [--open]\n  binas run   [--root <dir>] [--claude <bin>] [--sandbox docker] [--floor <name>] [--once] [--cloud <url> --key <key> --team <id>] [--no-preview]\n  binas job add --title "…" --brief "…" [--project <path> | --slug <name>] [--ship pr|branch|none] [--budget 5] [--model <m>] [--autonomy ask|full]\n  binas jobs\n  binas answer <jobId> "<text>"\n  binas user new --username <u> --display "<name>" [--role owner|tester] [--floor <name>] [--allowance 25]\n  binas tail  [--root <dir>]\n  binas emit  '<json>' [--root <dir>]`);
     process.exit(cmd === 'help' ? 0 : 2);
 }

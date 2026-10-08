@@ -139,7 +139,7 @@ export function createRunner({ root, claude, sandbox = 'none', image, floor = nu
     const done = parseFence(out.result, DONE_FENCE) || { summary: short(out.result, 300), notes: 'the session ended without a binas-done block' };
     job.summary = done; job.state = 'done'; job.finishedAt = Date.now(); saveJob(root, job); ev(job, 'done', { paper: job.id, text: short(done.summary, 90) });
     const shipped = ship(job, { env }); job.links = { ...job.links, ...shipped.links }; job.shipMode = shipped.mode; shipped.notes.forEach((n) => say(job, n));
-    const pv = await preview(job, { env }); if (pv.url) job.links.preview = pv.url; pv.notes.forEach((n) => say(job, n));
+    const pv = env.BINAS_NO_PREVIEW === '1' ? { url: null, notes: ['live links are off on this workshop'] } : await preview(job, { env }); if (pv.url) job.links.preview = pv.url; pv.notes.forEach((n) => say(job, n));
     if (!pv.url && (job.kind || 'web') === 'web') done.notes = [done.notes, pv.notes[pv.notes.length - 1]].filter(Boolean).join(' · ');
     job.state = 'shipped'; saveJob(root, job);
     ev(job, 'ship', { paper: job.id, text: job.links.preview || shipped.links.pr || shipped.links.remote || `branch ${job.branch}` });
