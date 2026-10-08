@@ -145,7 +145,7 @@ export function createMaquette(THREE, canvas, stage, labelsEl) {
 
     /* camera fits the content unless the viewer zoomed */
     const span = Math.max(lay.width, lay.depth, 24);
-    if (!userZoom) { const fit = span * 1.7 + 22; camTo.r = camera.aspect < 1 ? fit * Math.min(2.2, 0.85 / Math.max(0.4, camera.aspect)) : fit; }
+    if (!userZoom) { const fit = span * 2.05 + 26; camTo.r = camera.aspect < 1 ? fit * Math.min(2.2, 0.85 / Math.max(0.4, camera.aspect)) : fit; }
     const k = RM ? 1 : Math.min(1, dt * 2.5); cam.r += (camTo.r - cam.r) * k; cam.phi += (camTo.phi - cam.phi) * k; cam.theta += (camTo.theta - cam.theta) * k;
     const drift = RM ? 0 : Math.sin(performance.now() / 16000) * 6; const ph = cam.phi * Math.PI / 180, th = (cam.theta + drift) * Math.PI / 180;
     camera.position.set(cam.r * Math.cos(ph) * Math.sin(th), cam.r * Math.sin(ph), cam.r * Math.cos(ph) * Math.cos(th)); camera.lookAt(0, 1, 0); scene.fog.near = cam.r * 1.1; scene.fog.far = cam.r * 2.6;
