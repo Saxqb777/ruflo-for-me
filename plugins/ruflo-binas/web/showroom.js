@@ -105,7 +105,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
       m.append(el('span', 'who mono', t.author === 'binas' ? (t.kind === 'ask' ? 'the floor asks' : t.kind === 'report' ? 'what got built' : 'the floor') : t.author), el('span', 'at mono', when(t.createdAt)));
       m.appendChild(el('div', 'txt', t.text));
       if (t.kind === 'report' && t.options && t.options.length) { const ul = el('ul', 'changes'); t.options.forEach((c) => ul.appendChild(el('li', '', c))); m.appendChild(ul); }
-      if (t.note && t.kind !== 'answer' && (owner() || !/^detail: /.test(t.note))) m.appendChild(el('div', 'note', t.note));
+      if (t.note && ['ask', 'report', 'note'].includes(t.kind) && (owner() || !/^detail: /.test(t.note))) m.appendChild(el('div', 'note', t.note));
       if (t.kind === 'report' && t.links && (t.links.preview || t.links.remote)) { const d = el('div', 'tlinks'); d.innerHTML = [t.links.preview ? `<a href="${esc(t.links.preview)}" target="_blank" rel="noopener">open the preview</a>` : '', t.links.remote ? `<a href="${esc(t.links.remote)}" target="_blank" rel="noopener">code</a>` : ''].filter(Boolean).join(' · '); m.appendChild(d); }
       if (['request', 'answer'].includes(t.kind)) m.appendChild(el('div', 'tstatus mono', `${TURN[t.status] || t.status}${owner() && t.budgetUsd ? ' · cap ' + money(t.budgetUsd) : ''}${owner() && t.costUsd !== null && t.costUsd !== undefined ? ' · ' + money(t.costUsd) : ''}${t.note && t.status === 'running' ? ' · ' + t.note : ''}`));
       list.appendChild(m);

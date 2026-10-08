@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mapHook, emptyState, describeTool } from '../src/adapters/claude-hooks.mjs';
+import { mapHook, emptyState, describeTool, roleOf } from '../src/adapters/claude-hooks.mjs';
 
 const SID = 'abcd1234-session';
 // 2.5 s between payloads: the coordinator's task line is rate limited to one start per 2 s.
@@ -87,4 +87,15 @@ test('SessionEnd clears the floor; unknown events do nothing', () => {
   assert.equal(k.filter((x) => x === 'leave').length, 2);
   assert.equal(state.joined, false);
   assert.deepEqual(mapHook({}, undefined, 1).events, []);
+});
+
+test('a general-purpose subagent takes its role from the task line, so it sits in the right room', () => {
+  assert.equal(roleOf({ subagent_type: 'general-purpose', description: 'Researcher: scope the brief' }), 'researcher');
+  assert.equal(roleOf({ subagent_type: 'general-purpose', description: 'designer: write DESIGN.md' }), 'designer');
+  assert.equal(roleOf({ subagent_type: 'general-purpose', description: 'Design review — screenshots at 375' }), 'design-review');
+  assert.equal(roleOf({ subagent_type: 'tester', description: 'Coder: x' }), 'tester', 'a real type wins');
+  assert.equal(roleOf({ subagent_type: 'general-purpose', description: 'look around the repo' }), 'general-purpose');
+  assert.equal(roleOf({}), 'agent');
+  const { events } = run([{ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_use_id: 'g1', tool_input: { subagent_type: 'general-purpose', description: 'Coder: implement Rally' } }]);
+  const j = events.find((e) => e.kind === 'join' && e.role !== 'coordinator'); assert.equal(j.role, 'coder'); assert.equal(j.name, 'coder'); assert.ok(j.agent.startsWith('coder.'));
 });

@@ -46,6 +46,10 @@ One line per decision, newest at the bottom. The next session reads this first.
 
 | 2026-10-08 | No hand-copied Vercel token. Live links use `VERCEL_TOKEN` if set, else the login a one-time `npx vercel login` stores on the machine; `binas run` offers that login itself when none is found. Flags given once (`--cloud`, `--key`, `--team`, `--github`) are saved to `~/.binas/config.json` (0600), so afterwards the workshop is `node bin/binas.mjs run`. | The owner pasted placeholder lines into zsh and nothing ran. The cloud session has no tool that reaches the owner's Mac and the Vercel connector cannot mint tokens, so the fix is to remove the step, not to do it for them. |
 
+| 2026-10-08 | Round caps: testers $8 first / $6 big / $2 small; the owner $20 / $12 / $3. A round that hits its cap is a question, not a snag: "This round used its budget before it finished. Keep going?" with Keep going and Wrap up what you have; the answer resumes the same Claude session. | The first real build (ping pong, full pipeline) was on track to outgrow $8, and the old path would have told the owner "hit a snag". |
+| 2026-10-08 | The floor reads roles from the task line when Claude Code names every helper "general-purpose" ("Researcher: …", "designer: …"); the pipeline prompt now requires that prefix. Review sits before design in the room table so a design review lands in Review. | Every helper sat on the Build floor as GENERAL-PU. |
+| 2026-10-08 | A worker can leave and come back: the engine keeps away spans instead of one leave time, a join or a question brings it back, and replays stay accurate. Late names fill in. The workshop sends events to the cloud through one ordered queue. Closing a project writes unblock + leave for its worker. "Waiting for a yes" names the project, not the id. | A project's worker leaves at the end of every session and returns on the next; before this it vanished for good, its label showed the raw id, and a closed project's flag stayed up forever. |
+
 ## Open
 
 - Sound design beyond the synthesized set.

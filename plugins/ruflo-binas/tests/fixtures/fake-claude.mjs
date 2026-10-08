@@ -8,7 +8,9 @@ const out = (o) => process.stdout.write(JSON.stringify(o) + '\n');
 out({ type: 'system', subtype: 'init', session_id: resume ? args[args.indexOf('--resume') + 1] : 'sess_fake_1', cwd: process.cwd(), tools: ['Agent'] });
 out({ type: 'assistant', message: { content: [{ type: 'text', text: resume ? 'Continuing with the answer.' : 'Reading the brief.' }] } });
 const mode = process.env.FAKE_CLAUDE_MODE || '';
-if (mode === 'blocked') {
+if (mode === 'budget' && !resume) {
+  out({ type: 'result', subtype: 'error_max_budget_usd', is_error: true, num_turns: 9, total_cost_usd: 1.01, session_id: 'sess_fake_1', result: '' });
+} else if (mode === 'blocked') {
   out({ type: 'result', subtype: 'success', is_error: false, num_turns: 2, total_cost_usd: 0.01, session_id: 'sess_fake_1', result: 'Stopped.\n\n```binas-blocked\n{"reason":"The floor could not save any files on this machine.","detail":"Write denied: sensitive file (cwd inside plugin dir)"}\n```' });
 } else if (mode === 'machine') {
   out({ type: 'result', subtype: 'success', is_error: false, num_turns: 2, total_cost_usd: 0.01, session_id: 'sess_fake_1', result: '```binas-ask\n{"question":"File writes are denied in this session (Write tool blocked). How should I proceed?","options":[],"context":"permission mode"}\n```' });

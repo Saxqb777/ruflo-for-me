@@ -5,6 +5,15 @@ import { basename } from 'node:path';
 
 const SHIP_RE = /\bgit\s+push\b|\bgh\s+pr\s+create\b|\bnpm\s+publish\b|\bvercel\b.*\b(--prod|deploy)\b|\bpnpm\s+publish\b/;
 const PERMISSION_RE = /permission|approve|allow|waiting for your input|needs your/i;
+const GENERIC_RE = /^(general-purpose|general|agent|task|worker|default|subagent)$/i;
+/** The role a subagent plays: its type, unless that is generic, then the "Role: …" prefix of its task line. */
+export function roleOf(input = {}) {
+  const type = String(input.subagent_type || '').trim();
+  if (type && !GENERIC_RE.test(type)) return type;
+  const m = String(input.description || input.prompt || '').match(/^\s*([A-Za-z][A-Za-z -]{1,23}?)\s*[:—–]\s/);
+  if (m) return m[1].trim().toLowerCase().replace(/\s+/g, '-');
+  return type || 'agent';
+}
 const short = (s, n = 72) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
 /** `job` ({ id, name }) binds the session to a factory job: the coordinator is the job's peg, the first paper is the job. */
@@ -68,8 +77,9 @@ export function mapHook(payload, state, nowMs = Date.now()) {
       joinMain(state, nowMs, events); unblock(state, nowMs, events, 'approved');
       if (isAgentTool) {
         state.subN += 1;
-        const base = String(input.name || input.subagent_type || 'agent').replace(/[^a-z0-9_-]/gi, '').slice(0, 24).toLowerCase() || 'agent';
-        const id = `${base}.${state.sid}.${state.subN}`; const role = String(input.subagent_type || base);
+        const role = roleOf(input);
+        const base = String(input.name || role).replace(/[^a-z0-9_-]/gi, '').slice(0, 24).toLowerCase() || 'agent';
+        const id = `${base}.${state.sid}.${state.subN}`;
         const paper = `${state.paper || state.paperBase}.${state.subN}`; const text = short(input.description || input.prompt, 90);
         const key = String(p.tool_use_id || `${base}-${state.subN}`); state.subs[key] = { id, paper, role, t: nowMs };
         events.push({ t: nowMs, kind: 'join', agent: id, role, name: base, source: 'claude-hooks' });

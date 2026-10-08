@@ -119,11 +119,11 @@ document.addEventListener('keydown', (e) => { if (typing(e.target)) return; if (
    replaced between mouse-down and mouse-up never receives its click. Countdowns update in place. */
 let yesSig = '';
 function renderYes(notes) {
-  const sig = notes.map((n) => { const q = n.a.startsWith('job.') ? factory.question(n.a.slice(4)) : null; return n.a + '|' + n.text + '|' + (q ? q.options.join(',') : ''); }).join(';');
+  const sig = notes.map((n) => { const q = n.a.startsWith('job.') ? factory.question(n.a.slice(4)) : null; const ag = engine.agents.get(n.a); return n.a + '|' + (ag ? ag.name : '') + '|' + n.text + '|' + (q ? q.options.join(',') : ''); }).join(';');
   if (sig !== yesSig) {
     yesSig = sig; yesEl.replaceChildren();
     if (!notes.length) { const d = document.createElement('div'); d.className = 'none'; d.textContent = 'none'; yesEl.appendChild(d); }
-    notes.forEach((n) => { const d = document.createElement('div'); d.className = 'yes-item'; d.innerHTML = '<span class="who"></span><span class="cd"></span><span class="txt"></span>'; d.children[0].textContent = n.a; d.children[2].textContent = n.text;
+    notes.forEach((n) => { const d = document.createElement('div'); d.className = 'yes-item'; d.innerHTML = '<span class="who"></span><span class="cd"></span><span class="txt"></span>'; const ag = engine.agents.get(n.a); d.children[0].textContent = ag && ag.name !== ag.id ? ag.name : n.a.replace(/^job\./, ''); d.children[2].textContent = n.text;
       const q = n.a.startsWith('job.') ? factory.question(n.a.slice(4)) : null;
       if (q) { const row = document.createElement('div'); row.className = 'yes-opts'; (q.options || []).forEach((o) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = o; b.onclick = () => factory.answer(n.a.slice(4), o); row.appendChild(b); }); const more = document.createElement('button'); more.type = 'button'; more.textContent = 'answer in Factory'; more.onclick = () => $('factory').scrollIntoView({ behavior: 'smooth' }); row.appendChild(more); d.appendChild(row); }
       yesEl.appendChild(d); });

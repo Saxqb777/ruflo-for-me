@@ -101,7 +101,7 @@ On the cloud floor the Factory panel becomes the showroom. Each user signs in wi
 
 A project is a conversation, not a prompt. The first message opens the repository and runs the full pipeline (researcher → designer → architect → coder → tester → design review → reviewer). Every later message is a turn on the same Claude session and branch: small asks go to a coder and a tester, big ones through the pipeline again. The floor may stop and ask; the answer resumes it. Every turn ends with a shift report: what exists now, what changed, how to open it, what is next.
 
-Allowances: the owner is unlimited; a tester has a monthly cap in dollars. Each turn gets a spend cap ($8 for a first turn, $6 for a big one, $2 for a small one, or what the owner sets); when the floor's month plus that cap is over the allowance, the turn waits in the owner's tray until approved or declined.
+Allowances: the owner is unlimited; a tester has a monthly cap in dollars. Each turn gets a spend cap (testers: $8 first, $6 big, $2 small; the owner: $20, $12, $3; or what the owner sets); when the floor's month plus that cap is over the allowance, the turn waits in the owner's tray until approved or declined. A round that uses its whole cap does not fail: the floor asks "Keep going?" with two buttons, Keep going and Wrap up what you have, and the answer resumes the same session.
 
 | Variable | Purpose |
 |---|---|

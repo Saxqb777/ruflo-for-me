@@ -77,7 +77,7 @@ switch (cmd) {
     const board = cloudUrl ? createBoard({ url: cloudUrl, key, floor: flag('--floor', 'all') }) : null;
     const runner = createRunner({ root, claude: { bin, prefixArgs: [] }, sandbox: flag('--sandbox', 'none'), floor: board ? null : flag('--floor', process.env.BINAS_FLOOR || null), board, log: out });
     out(`Binas workshop  projects and log under ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key and host tokens stripped from sessions)\n  board    ${board ? board.url + ' (floor ' + flag('--floor', 'all') + ')' : 'local only (add --cloud <url> --key <key> for the showroom)'}\n  github   ${process.env.BINAS_GITHUB_OWNER ? 'repos under ' + process.env.BINAS_GITHUB_OWNER : 'code stays on this machine (add --github <user> to push private repos)'}\n  preview  ${auth ? `every web turn ends with a live link (via ${auth.source}${team ? ', team ' + team : ''})` : 'NO live links: run npx vercel login, then restart'}\n  jobs     ${listJobs(root).length} on file`);
-    if (has('--once')) { runner.tick().then((j) => { out(j ? `worked on ${j.id} → ${j.state}` : 'nothing to do'); process.exit(0); }).catch((e) => die(e.message, 1)); }
+    if (has('--once')) { runner.tick().then(async (j) => { await runner.flush(); out(j ? `worked on ${j.id} → ${j.state}` : 'nothing to do'); process.exit(0); }).catch((e) => die(e.message, 1)); }
     else { const stop = runner.start(Number(flag('--poll', 3000))); out('  watching for jobs · Ctrl-C to stop'); process.on('SIGINT', () => { stop(); process.exit(0); }); }
     break;
   }

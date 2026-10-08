@@ -3,6 +3,7 @@
 import { hashPassword, verifyPassword, passwordVersion, signSession, sessionCookie, clearCookie, publicUser, passwordOk, usernameOk } from './auth.mjs';
 import { floorOk } from './http.mjs';
 import * as db from './store.mjs';
+import { insertEvents } from './neon.mjs';
 
 const short = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const slugify = (s) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'project';
@@ -11,9 +12,12 @@ const reply = (status, body, headers) => ({ status, body, ...(headers ? { header
 const isOwner = (u) => !!u && u.role === 'owner';
 const BIG_RE = /\b(add|build|create|new|another)\b[^.]{0,60}\b(page|feature|flow|screen|module|integration|auth|login|signup|payment|checkout|database|api|dashboard|admin|search|upload|email)\b|\b(redesign|rebuild|rewrite|refactor|migrate|integrate|overhaul)\b/i;
 
+/** Spend caps per round. The owner's floor gets more room; a round that hits its cap asks "keep going?". */
+export const CAPS = { tester: { first: 8, full: 6, small: 2 }, owner: { first: 20, full: 12, small: 3 } };
 /** How big a turn is, and its spend cap. The first turn of a project is always the full pipeline. */
 export function sizeTurn(text, { first = false, requested = null, owner = false } = {}) {
-  const base = first ? { size: 'full', budgetUsd: 8 } : BIG_RE.test(String(text)) || String(text).length > 600 ? { size: 'full', budgetUsd: 6 } : { size: 'small', budgetUsd: 2 };
+  const c = owner ? CAPS.owner : CAPS.tester;
+  const base = first ? { size: 'full', budgetUsd: c.first } : BIG_RE.test(String(text)) || String(text).length > 600 ? { size: 'full', budgetUsd: c.full } : { size: 'small', budgetUsd: c.small };
   const asked = Number(requested);
   if (Number.isFinite(asked) && asked > 0) base.budgetUsd = Math.min(owner ? 200 : 50, Math.max(0.5, asked));
   return base;
@@ -60,6 +64,8 @@ export async function projects(ctx) {
     const open = await db.openWork(sql, p.id); if (open) await db.updateTurn(sql, open.id, { status: ['running', 'blocked'].includes(open.status) ? 'failed' : 'rejected' }, now);
     await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: (open ? open.n : p.turns) + 1, author: user.username, kind: 'note', text: 'Project closed.', status: 'done' }, now);
     await db.updateProject(sql, p.id, { status: 'closed' }, now);
+    // the floor lowers any flag this project raised and its worker goes home
+    await insertEvents(sql, p.floor, [{ t: now, kind: 'unblock', agent: 'job.' + p.id, text: 'project closed', source: 'showroom' }, { t: now + 1, kind: 'leave', agent: 'job.' + p.id, source: 'showroom' }]);
     return reply(200, { project: await db.getProject(sql, p.id) });
   }
   if (method !== 'POST') return reply(405, { error: 'GET, POST or DELETE' });

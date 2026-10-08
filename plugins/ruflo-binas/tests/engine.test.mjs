@@ -70,3 +70,20 @@ test('a full room overflows to the build floor instead of failing', () => {
   const rooms = [0, 1, 2, 3].map((i) => eng.agents.get('r' + i).slot.room);
   assert.deepEqual(rooms, ['102', '102', '201', '201']);
 });
+
+test('a worker who leaves comes back on its next join or question; names fill in late; review sits in Review', () => {
+  const eng = createEngine();
+  eng.push({ t: 1000, kind: 'arrive', paper: 'p', to: 'job.prj_x', text: 'x' });
+  eng.push({ t: 1001, kind: 'join', agent: 'job.prj_x', role: 'coordinator', name: 'PING PONG' });
+  assert.equal(eng.agents.get('job.prj_x').name, 'PING PONG', 'a name that arrives after the first event still sticks');
+  eng.push({ t: 2000, kind: 'leave', agent: 'job.prj_x' });
+  eng.push({ t: 3000, kind: 'block', agent: 'job.prj_x', text: 'Keep going?' });
+  const at = (t) => eng.view(t).agents.find((a) => a.id === 'job.prj_x');
+  assert.equal(at(2500).gone, true); assert.equal(at(3500).gone, false); assert.equal(at(3500).state, 'blocked');
+  eng.push({ t: 4000, kind: 'unblock', agent: 'job.prj_x' }); eng.push({ t: 4001, kind: 'leave', agent: 'job.prj_x' });
+  assert.equal(at(4500).gone, true); assert.equal(eng.view(4500).notes.length, 0, 'closing lowers the flag');
+  eng.push({ t: 5000, kind: 'join', agent: 'job.prj_x', role: 'coordinator' }); assert.equal(at(5500).gone, false, 'back for the next round');
+  assert.equal(at(2500).gone, true, 'history replays: still away between leave and the question');
+  eng.push({ t: 6000, kind: 'join', agent: 'dr.1', role: 'design-review' }); assert.equal(eng.agents.get('dr.1').slot.room, '105');
+  eng.push({ t: 6001, kind: 'join', agent: 'ds.1', role: 'designer' }); assert.equal(eng.agents.get('ds.1').slot.room, '103');
+});

@@ -36,9 +36,9 @@ export const DOCK_STAMP = { x: wx(870), z: wz(610) };
 const ROLE_ROOM = [
   [/coordinat|queen|lead|orchestr|main|^me$|session/, '101'],
   [/research|analy|scout|explor/, '102'],
+  [/review|secur|audit/, '105'],
   [/architect|design|spec|plan/, '103'],
   [/test|qa\b|valid|bench/, '104'],
-  [/review|secur|audit/, '105'],
   [/release|deploy|cicd|ship|publish/, '202'],
 ];
 export function roomForRole(role) {
@@ -110,13 +110,17 @@ export function createEngine() {
   function ensureAgent(id, role, t, name) {
     if (!id) return null;
     let a = agents.get(id);
-    if (a) { if (role && a.role === 'worker') { a.role = role; } return a; }
+    if (a) { if (role && a.role === 'worker') { a.role = role; } if (name && a.name === a.id) a.name = name; return a; }
     const slot = pickSlot(role || 'worker');
     taken.add(slot.id);
-    a = { id, name: name || id, role: role || 'worker', slot, states: [{ t: t - 1, s: 'idle', text: '—' }], joinedAt: t, left: null };
+    a = { id, name: name || id, role: role || 'worker', slot, states: [{ t: t - 1, s: 'idle', text: '—' }], joinedAt: t, away: [] };
     agents.set(id, a); trays.set(id, []);
     return a;
   }
+  /* A worker can leave and come back (every answered question does); away is a list of [left, back] spans. */
+  const isAway = (a) => a.away.length > 0 && a.away[a.away.length - 1][1] === null;
+  function comeBack(a, t) { if (!isAway(a)) return false; a.away[a.away.length - 1][1] = t; return true; }
+  const goneAt = (a, now) => a.away.some(([l, b]) => now >= l && (b === null || now < b));
   function coordinator() {
     for (const a of agents.values()) if (a.slot.room === '101') return a;
     return null;
@@ -138,8 +142,12 @@ export function createEngine() {
   function lastWorking(a) { for (let i = a.states.length - 1; i >= 0; i--) if (a.states[i].s === 'working') return a.states[i]; return null; }
 
   const H = {
-    join(e) { const existed = agents.has(e.agent); const a = ensureAgent(e.agent, e.role, e.t, e.name); if (!a || existed) return; feedLine(e.t, 'join', a.id, `${a.name} joined · ${a.role}`); },
-    leave(e) { const a = agents.get(e.agent); if (!a) return; a.left = e.t; setState(a, e.t, 'gone', '—'); feedLine(e.t, 'leave', a.id, `${a.name} left`); },
+    join(e) {
+      const existed = agents.has(e.agent); const a = ensureAgent(e.agent, e.role, e.t, e.name); if (!a) return;
+      if (existed) { if (comeBack(a, e.t)) { setState(a, e.t, 'idle', '—'); feedLine(e.t, 'join', a.id, `${a.name} is back`); } return; }
+      feedLine(e.t, 'join', a.id, `${a.name} joined · ${a.role}`);
+    },
+    leave(e) { const a = agents.get(e.agent); if (!a || isAway(a)) return; a.away.push([e.t, null]); setState(a, e.t, 'gone', '—'); feedLine(e.t, 'leave', a.id, `${a.name} left`); },
     arrive(e) {
       const p = ensurePaper(e.paper, e.text, e.t);
       const to = (e.to && ensureAgent(e.to, e.toRole, e.t)) || coordinator() || ensureAgent('main', 'coordinator', e.t, 'ME');
@@ -164,7 +172,7 @@ export function createEngine() {
       setState(a, e.t, 'working', short(e.text, 90)); sfx.push({ t: e.t, k: 'click' }); feedLine(e.t, 'start', a.id, short(e.text, 90) || 'working');
     },
     block(e) {
-      const a = ensureAgent(e.agent, e.role, e.t); if (!a) return;
+      const a = ensureAgent(e.agent, e.role, e.t); if (!a) return; comeBack(a, e.t); // a question brings the worker back to wait at its desk
       const n = { a: a.id, t0: e.t, t1: Infinity, text: short(e.text || e.needs, 90) }; notes.push(n);
       setState(a, e.t, 'blocked', n.text); sfx.push({ t: e.t, k: 'flag' }); feedLine(e.t, 'block', a.id, `needs you · ${n.text}`);
     },
@@ -218,7 +226,7 @@ export function createEngine() {
     for (const a of agents.values()) {
       if (a.joinedAt > now + 1) continue;
       const st = stateOf(a, now); if (st.s === 'blocked') out.blocked++;
-      out.agents.push({ id: a.id, name: a.name, role: a.role, slot: a.slot, state: st.s, text: st.text, gone: !!(a.left && a.left <= now) });
+      out.agents.push({ id: a.id, name: a.name, role: a.role, slot: a.slot, state: st.s, text: st.text, gone: goneAt(a, now) });
     }
     for (const p of papers.values()) {
       const pos = paperAt(p, now, opts.reduced); const s = statusOf(p, now);

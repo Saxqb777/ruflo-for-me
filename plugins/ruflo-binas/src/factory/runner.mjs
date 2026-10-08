@@ -24,6 +24,9 @@ const HOST_ONLY = ['ANTHROPIC_API_KEY', 'VERCEL_TOKEN', 'VERCEL_TEAM_ID', 'GH_TO
 /** A question that is really the machine talking. It goes to the owner as a snag, never to a user as a question. */
 export const MACHINE_RE = /permission|denied|allowed ?tools|session setting|cannot write|could not write|can't write|write tool|bash tool|the shell|sandbox|exit code|stack trace|ENOENT|EACCES|not allowed to|sensitive file|refused/i;
 export const SNAG = 'The floor hit a snag and stopped. The owner has been told.';
+/** A round that ran out of its spend cap: not a snag, a question with two buttons. */
+export const BUDGET_RE = /max[_ -]?budget|budget/i;
+export const BUDGET_ASK = { text: 'This round used its budget before it finished. Keep going?', options: ['Keep going', 'Wrap up what you have'], recommended: true, context: 'the work so far is saved' };
 const short = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const git = (args, cwd) => { const r = spawnSync('git', args, { cwd, encoding: 'utf8' }); return { ok: r.status === 0, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() }; };
 
@@ -99,14 +102,16 @@ export function runSession({ cmd, args, cwd, env, onLine = () => {}, timeoutMs =
     child.stderr.on('data', (d) => { stderr += d; if (stderr.length > 20000) stderr = stderr.slice(-20000); });
     child.on('error', (e) => { stderr += '\n' + e.message; });
     child.on('close', (code) => { clearTimeout(timer);
-      resolveP({ sessionId, result: final ? String(final.result || '') : '', cost: final ? Number(final.total_cost_usd || final.cost_usd || 0) : 0, turns: final ? Number(final.num_turns || 0) : 0, isError: final ? !!final.is_error : true, exitCode: code, stderr: stderr.trim() }); });
+      resolveP({ sessionId, result: final ? String(final.result || '') : '', subtype: final ? String(final.subtype || '') : '', cost: final ? Number(final.total_cost_usd || final.cost_usd || 0) : 0, turns: final ? Number(final.num_turns || 0) : 0, isError: final ? !!final.is_error || /^error/.test(String(final.subtype || '')) : true, exitCode: code, stderr: stderr.trim() }); });
   });
 }
 
 export function createRunner({ root, claude, sandbox = 'none', image, floor = null, env = process.env, log = () => {}, ship = shipJob, run = runSession, board = null, preview = previewDeploy } = {}) {
   root = resolve(root || defaultRoot());
   if (insidePlugin(root)) throw new Error(PLUGIN_ROOT_ERROR);
-  const ev = (job, kind, extra = {}) => { const e = { t: Date.now(), kind, agent: jobAgentId(job), role: 'coordinator', name: jobAgentName(job), source: 'factory', ...extra }; appendEvent(root, e); if (board) board.sendEvents([e], job.cloud ? job.cloud.floor : floor); };
+  // Events reach the cloud floor in the order they happened: one queue, one send at a time.
+  let sendQ = Promise.resolve();
+  const ev = (job, kind, extra = {}) => { const e = { t: Date.now(), kind, agent: jobAgentId(job), role: 'coordinator', name: jobAgentName(job), source: 'factory', ...extra }; appendEvent(root, e); if (board) { const fl = job.cloud ? job.cloud.floor : floor; sendQ = sendQ.then(() => board.sendEvents([e], fl)).catch(() => {}); } };
   const say = (job, text) => { note(job, text); log(`[${job.id}] ${text}`); };
   const sync = async (job, patch) => { if (!job.cloud || !board) return; try { await board.update(job.cloud.turnId, { sessionId: job.sessionId || undefined, costUsd: job.costUsd, ...patch }); } catch (e) { say(job, 'cloud board not updated: ' + e.message); } };
   /** A failed turn: the technical reason stays with the owner (terminal, board detail); the user reads a plain line. */
@@ -124,6 +129,11 @@ export function createRunner({ root, claude, sandbox = 'none', image, floor = nu
     let out = await session(job, { resume, resumeAnswer: answer, followUp });
     if (out.isError && resume && /session|resume|conversation/i.test(out.stderr + ' ' + out.result)) { say(job, 'could not resume the old session; starting fresh with the context'); job.sessionId = null; out = await session(job, { resume: false, resumeAnswer: answer, followUp: followUp || job.brief }); }
     job.sessionId = out.sessionId || job.sessionId; job.costUsd = Number((job.costUsd + out.cost).toFixed(4)); job.turns += out.turns; job.lastResult = short(out.result, 4000);
+    if (out.isError && job.sessionId && BUDGET_RE.test(out.subtype + ' ' + out.result + ' ' + out.stderr)) {
+      job.state = 'blocked'; job.question = { ...BUDGET_ASK, askedAt: Date.now() }; saveJob(root, job);
+      ev(job, 'block', { text: BUDGET_ASK.text, needs: BUDGET_ASK.options.join(' / ') }); say(job, `round budget used ($${job.costUsd}); asking to keep going`);
+      await sync(job, { status: 'blocked', question: job.question }); return job;
+    }
     if (out.isError) return fail(job, out.stderr || out.result || `exit ${out.exitCode}`);
     const blocked = parseFence(out.result, BLOCKED_FENCE);
     if (blocked) return fail(job, blocked.detail || blocked.reason || blocked.raw || 'blocked', blocked.reason || SNAG);
@@ -187,5 +197,7 @@ export function createRunner({ root, claude, sandbox = 'none', image, floor = nu
   }
   let timer = null, busy = false;
   function start(pollMs = 3000) { const loop = async () => { if (busy) return; busy = true; try { await tick(); } catch (e) { log('runner error: ' + e.message); } finally { busy = false; } }; loop(); timer = setInterval(loop, pollMs); return () => clearInterval(timer); }
-  return { tick, runJob, resumeJob, pullCloud, sweep, start, root };
+  /** Wait until every event has been sent to the cloud floor (used before exiting). */
+  const flush = () => sendQ;
+  return { tick, runJob, resumeJob, pullCloud, sweep, start, flush, root };
 }

@@ -22,6 +22,7 @@ test('sizeTurn: first turn is the full pipeline; small asks are small; big words
   assert.deepEqual(sizeTurn('make the header blue'), { size: 'small', budgetUsd: 2 });
   assert.deepEqual(sizeTurn('add a login page with email'), { size: 'full', budgetUsd: 6 });
   assert.equal(sizeTurn('x'.repeat(601)).size, 'full');
+  assert.deepEqual(sizeTurn('anything', { first: true, owner: true }), { size: 'full', budgetUsd: 20 }); assert.equal(sizeTurn('make the header blue', { owner: true }).budgetUsd, 3); assert.equal(sizeTurn('add a login page', { owner: true }).budgetUsd, 12);
   assert.equal(sizeTurn('tiny', { requested: 500 }).budgetUsd, 50); assert.equal(sizeTurn('tiny', { requested: 500, owner: true }).budgetUsd, 200); assert.equal(sizeTurn('tiny', { requested: 0.1 }).budgetUsd, 0.5);
   assert.ok(monthStart(NOW) === Date.UTC(2026, 9, 1));
   assert.ok(userInsertSql({ username: "o'x", floor: 'f', passHash: 'h' }).includes("'o''x'"));
@@ -76,13 +77,14 @@ test('projects: a tester sees one floor, the owner every floor; opening one queu
 });
 
 test('closing a project withdraws its queued work and hides it from the list; nothing is deleted', async () => {
-  let sql = scripted([[prow({ status: 'queued' })], [trow({ status: 'queued' })], [], [{ id: '2' }], [], [prow({ status: 'closed' })]]);
+  let sql = scripted([[prow({ status: 'queued' })], [trow({ status: 'queued' })], [], [{ id: '2' }], [], [], [prow({ status: 'closed' })]]);
   const r = await projects(ctx({ method: 'DELETE', user: TESTER, sql, query: { project: 'prj_1' } }));
   assert.equal(r.status, 200); assert.equal(r.body.project.status, 'closed');
   assert.equal(sql.calls[2].params[1], 'rejected'); assert.equal(sql.calls[3].params[5], 'Project closed.'); assert.equal(sql.calls[4].params[1], 'closed');
+  const flag = sql.calls[5]; assert.ok(flag.query.startsWith('INSERT INTO binas_events'), 'the floor is told'); assert.deepEqual([flag.params[2], flag.params[3], flag.params[15], flag.params[16]], ['unblock', 'job.prj_1', 'leave', 'job.prj_1']); assert.equal(flag.params[0], 'tee');
   assert.ok(sql.calls.every((c) => !/^DELETE/i.test(c.query)));
   assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ status: 'running' })]]), query: { project: 'prj_1' } }))).status, 409);
-  sql = scripted([[prow({ status: 'running' })], [trow({ status: 'running' })], [], [{ id: '3' }], [], [prow({ status: 'closed' })]]);
+  sql = scripted([[prow({ status: 'running' })], [trow({ status: 'running' })], [], [{ id: '3' }], [], [], [prow({ status: 'closed' })]]);
   assert.equal((await projects(ctx({ method: 'DELETE', user: OWNER, sql, query: { project: 'prj_1' } }))).status, 200, 'the owner can close a stuck project'); assert.equal(sql.calls[2].params[1], 'failed');
   assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ floor: 'main' })]]), query: { project: 'prj_1' } }))).status, 404);
   sql = scripted([[]]); await projects(ctx({ user: TESTER, sql })); assert.ok(sql.calls[0].query.includes("status <> 'closed'"));

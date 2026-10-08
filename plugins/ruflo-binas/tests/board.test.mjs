@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createBoard, jobFromWork } from '../src/factory/board.mjs';
-import { createRunner, childEnv, defaultRoot, insidePlugin, PLUGIN_ROOT, PLUGIN_ROOT_ERROR, MACHINE_RE, SNAG } from '../src/factory/runner.mjs';
+import { createRunner, childEnv, defaultRoot, insidePlugin, PLUGIN_ROOT, PLUGIN_ROOT_ERROR, MACHINE_RE, SNAG, BUDGET_ASK } from '../src/factory/runner.mjs';
 import { saveJob } from '../src/factory/jobs.mjs';
 import { previewDeploy, vercelAuth, cliAuthPaths } from '../src/factory/preview.mjs';
 import { loadConfig, saveConfig, configPath } from '../src/factory/config.mjs';
@@ -193,4 +193,21 @@ test('settings are remembered in ~/.binas/config.json, owner-only, known keys on
     saveConfig({ key: 'k2' }, home); assert.equal(loadConfig(home).key, 'k2'); assert.equal(loadConfig(home).cloud, 'https://binas.vercel.app');
     if (process.platform !== 'win32') assert.equal(statSync(configPath(home)).mode & 0o777, 0o600);
   } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test('a round that runs out of budget asks "keep going?" with two buttons; the answer resumes the same session; events reach the cloud in order', async () => {
+  const root = tmp();
+  try {
+    const cloud = fakeCloud(); const board = createBoard({ url: 'https://binas.example', key: 'k', fetchImpl: async (u, i) => { await new Promise((r) => setTimeout(r, Math.random() * 15)); return cloud.fetch(u, i); } });
+    cloud.queue = [{ turn: { id: 30, n: 1, kind: 'request', text: 'big game', budgetUsd: 1 }, project: { ...PROJECT, id: 'prj_budget', slug: 'p-budget' } }];
+    const runner = createRunner({ root, claude: { bin: process.execPath, prefixArgs: [FAKE] }, board, env: { PATH: process.env.PATH, FAKE_CLAUDE_MODE: 'budget' }, preview: () => ({ url: null, notes: [] }) });
+    const j = await runner.tick(); await runner.flush();
+    assert.equal(j.state, 'blocked'); assert.deepEqual(j.question.options, BUDGET_ASK.options); assert.equal(j.question.recommended, true); assert.equal(j.sessionId, 'sess_fake_1');
+    const asked = cloud.updates.find((u) => u.status === 'blocked'); assert.equal(asked.question.text, BUDGET_ASK.text);
+    assert.ok(!cloud.updates.some((u) => u.status === 'failed'), 'a budget stop is not a snag');
+    assert.deepEqual(cloud.events.filter((e) => e.source === 'factory').map((e) => e.kind), ['join', 'arrive', 'start', 'block'], 'the floor receives events in the order they happened');
+    cloud.queue = [{ turn: { id: 31, n: 3, kind: 'answer', text: 'Keep going', budgetUsd: 1, note: BUDGET_ASK.text }, project: { ...PROJECT, id: 'prj_budget', slug: 'p-budget', sessionId: 'sess_fake_1' } }];
+    const resumed = await runner.tick(); await runner.flush();
+    assert.equal(resumed.state, 'shipped'); assert.ok(cloud.updates.some((u) => u.status === 'done' && u.turn === 31));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

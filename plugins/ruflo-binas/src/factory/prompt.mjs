@@ -19,7 +19,7 @@ export const DESIGN_RULES = [
 ];
 
 const pipeline = (web) => [
-  `Use the Agent tool to spawn named teammates, in this order, and wait for each before the next. Give each a precise task and tell it what to hand back. You integrate their results.`,
+  `Use the Agent tool to spawn named teammates, in this order, and wait for each before the next. Start every teammate's description with its name and a colon (for example "designer: write DESIGN.md") so the floor seats it in the right room. Give each a precise task and tell it what to hand back. You integrate their results.`,
   `1. "researcher": understand the request and the code; list unknowns and the smallest thing that satisfies the brief.`,
   web ? `2. "designer": write DESIGN.md: the product's one accent colour, the type pair and scale, spacing, the component list, copy voice, the three states for every list, and this banned list verbatim: ${DESIGN_RULES.join(' ')} No code yet.` : `2. "designer" is skipped: nothing here has a screen. Write a short INTERFACE.md instead (commands, inputs, outputs, errors).`,
   `3. "architect": the file plan and the data shape; keep files under 500 lines; pick the smallest stack that does the job (static HTML/CSS/JS for sites, Node for services). ${web ? 'A site must open from index.html at the repository root with no build step; if a build is unavoidable, package.json needs a build script that writes to dist/. The owner\'s machine deploys it to Vercel the moment you finish, so done means it runs.' : 'It must run with one documented command.'}`,
@@ -52,7 +52,8 @@ const done = (job) => [
 export function coordinatorPrompt(job, { resumeAnswer = null, followUp = null } = {}) {
   const web = (job.kind || 'web') === 'web';
   if (resumeAnswer) {
-    return [`The owner answered your question.`, ``, `Question: ${resumeAnswer.question || '(see above)'}`, `Answer: ${resumeAnswer.answer}`, ``,
+    return [`The person you are building for answered.`, ``, `Question: ${resumeAnswer.question || '(see above)'}`, `Answer: ${resumeAnswer.answer}`, ``,
+      `If the question was about this round's budget: "Keep going" means continue the plan exactly where you stopped; "Wrap up what you have" means finish the smallest working version of what exists, make sure it runs, and report.`, ``,
       `Continue the job from where you stopped. Same rules: work only inside this directory, commit on the branch you are on, and end with a ${DONE_FENCE} block when finished or a ${ASK_FENCE} block if you need another decision.`].join('\n');
   }
   if (followUp) {
