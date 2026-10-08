@@ -166,16 +166,20 @@ test('live links without a hand-copied token: the Vercel CLI login on the machin
     assert.ok(cliAuthPaths(home, 'darwin', {})[0].endsWith(join('Library', 'Application Support', 'com.vercel.cli', 'auth.json')));
     const dir = join(home, 'Library', 'Application Support', 'com.vercel.cli'); mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'auth.json'), JSON.stringify({ token: 'cli-token-123456' }));
-    assert.deepEqual(vercelAuth({}, { home, plat: 'darwin' }), { token: 'cli-token-123456', source: 'your vercel login' });
+    assert.deepEqual(vercelAuth({}, { home, plat: 'darwin' }), { token: 'cli-token-123456', source: 'your vercel login', cli: true });
     assert.equal(vercelAuth({ VERCEL_TOKEN: 'env-token-999' }, { home, plat: 'darwin' }).source, 'VERCEL_TOKEN', 'an explicit token wins');
     writeFileSync(join(dir, 'auth.json'), '{broken'); assert.equal(vercelAuth({}, { home, plat: 'darwin' }), null, 'a broken file is ignored, not fatal');
     writeFileSync(join(dir, 'auth.json'), JSON.stringify({ token: 'cli-token-123456' }));
     const work = join(home, 'site'); mkdirSync(work); writeFileSync(join(work, 'index.html'), '<!doctype html>');
     const auths = []; const fetchImpl = async (url, init = {}) => { auths.push(init.headers.authorization); return { ok: true, status: 200, json: async () => ({ id: 'prj_1', accountId: 'a' }) }; };
-    let args = null; const exec = (cmd, a) => { args = a; return { ok: true, out: 'https://binas-t1-site.vercel.app', err: '', status: 0 }; };
+    const calls = []; let args = null;
+    const exec = (cmd, a) => { calls.push(a.slice(1, 3).join(' ')); if (a[2] === 'whoami') { writeFileSync(join(dir, 'auth.json'), JSON.stringify({ token: 'cli-token-refreshed' })); return { ok: true, out: 'saxqb777', err: '', status: 0 }; } args = a; return { ok: true, out: 'https://binas-t1-site.vercel.app', err: '', status: 0 }; };
     const pv = await previewDeploy({ kind: 'web', workdir: work, project: { slug: 'site' }, cloud: { floor: 't1' } }, { exec, env: { VERCEL_TEAM_ID: 'team_1' }, fetchImpl, home, plat: 'darwin' });
-    assert.equal(pv.url, 'https://binas-t1-site.vercel.app'); assert.deepEqual(auths, ['Bearer cli-token-123456']);
-    assert.equal(args[args.indexOf('--token') + 1], 'cli-token-123456'); assert.ok(!args.includes('--scope'), 'a pinned project needs no --scope');
+    assert.equal(pv.url, 'https://binas-t1-site.vercel.app'); assert.deepEqual(calls, ['vercel whoami', 'vercel deploy'], 'the login is refreshed before anything else');
+    assert.deepEqual(auths, ['Bearer cli-token-refreshed'], 'the API call uses the refreshed token');
+    assert.ok(!args.includes('--token'), 'a CLI login authenticates itself'); assert.ok(!args.includes('--scope'), 'a pinned project needs no --scope');
+    let envArgs = null; await previewDeploy({ kind: 'web', workdir: work, project: { slug: 'site' } }, { exec: (c, a) => { envArgs = a; return { ok: true, out: 'https://x.vercel.app', err: '', status: 0 }; }, env: { VERCEL_TOKEN: 'env-token-999' }, fetchImpl, home, plat: 'darwin' });
+    assert.equal(envArgs[envArgs.indexOf('--token') + 1], 'env-token-999', 'an explicit token is passed through');
     assert.ok(!pv.notes.join(' ').includes('cli-token'), 'the token never appears in notes');
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

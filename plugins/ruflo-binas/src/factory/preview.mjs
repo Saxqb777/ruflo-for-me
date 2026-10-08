@@ -22,7 +22,7 @@ export function cliAuthPaths(home = homedir(), plat = process.platform, env = pr
 export function vercelAuth(env = process.env, { home = homedir(), plat = process.platform } = {}) {
   if (env.VERCEL_TOKEN) return { token: env.VERCEL_TOKEN, source: 'VERCEL_TOKEN' };
   for (const p of cliAuthPaths(home, plat, env)) {
-    try { if (!existsSync(p)) continue; const j = JSON.parse(readFileSync(p, 'utf8')); if (j && typeof j.token === 'string' && j.token.length > 8) return { token: j.token, source: 'your vercel login' }; } catch { /* unreadable: try the next */ }
+    try { if (!existsSync(p)) continue; const j = JSON.parse(readFileSync(p, 'utf8')); if (j && typeof j.token === 'string' && j.token.length > 8) return { token: j.token, source: 'your vercel login', cli: true }; } catch { /* unreadable: try the next */ }
   }
   return null;
 }
@@ -48,9 +48,11 @@ export async function ensureVercelProject(name, { token, teamId = '', fetchImpl 
 export async function previewDeploy(job, { exec = run, env = process.env, fetchImpl = globalThis.fetch, home, plat } = {}) {
   const notes = [];
   if ((job.kind || 'web') !== 'web') return { url: null, notes: ['no screen, no preview'] };
-  const auth = vercelAuth(env, { home, plat });
+  let auth = vercelAuth(env, { home, plat });
   if (!auth) return { url: null, notes: ['no Vercel login on the workshop: no live link this turn (run npx vercel login once)'] };
   const cwd = job.workdir;
+  // A CLI login is an OAuth token that expires; any CLI call refreshes it in place, so ask once, then re-read.
+  if (auth.cli) { exec('npx', ['--yes', 'vercel', 'whoami'], cwd, env); auth = vercelAuth(env, { home, plat }) || auth; }
   if (!['index.html', 'package.json', 'vercel.json'].some((f) => existsSync(join(cwd, f)))) return { url: null, notes: ['nothing deployable yet (no index.html, package.json or vercel.json)'] };
   const name = previewName(job); let pinned = false;
   try {
@@ -58,7 +60,8 @@ export async function previewDeploy(job, { exec = run, env = process.env, fetchI
     mkdirSync(join(cwd, '.vercel'), { recursive: true }); writeFileSync(join(cwd, '.vercel', 'project.json'), JSON.stringify({ projectId, orgId }));
     notes.push('vercel project ' + name); pinned = true;
   } catch (e) { notes.push('could not pin the Vercel project name (' + e.message.slice(0, 120) + '); deploying under the folder name'); }
-  const args = ['--yes', 'vercel', 'deploy', '--prod', '--yes', '--token', auth.token];
+  // With a CLI login the CLI authenticates (and refreshes) itself; only an explicit VERCEL_TOKEN is passed.
+  const args = ['--yes', 'vercel', 'deploy', '--prod', '--yes', ...(auth.cli ? [] : ['--token', auth.token])];
   if (!pinned && env.VERCEL_TEAM_ID) args.push('--scope', env.VERCEL_TEAM_ID);
   const r = exec('npx', args, cwd, env);
   const url = ((r.out + '\n' + r.err).match(/https:\/\/[a-z0-9.-]+\.vercel\.app\S*/gi) || []).pop() || null;
