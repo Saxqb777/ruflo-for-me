@@ -16,7 +16,10 @@ test('normalize maps aliases and verdicts, rejects unknown kinds', () => {
   assert.equal(normalize({ t: 1, kind: 'dance' }), null);
   assert.equal(normalize({ kind: 'start' }), null);
   assert.equal(normalize(null), null);
-  for (const k of KINDS) assert.equal(normalize({ t: 1, kind: k }).kind, k);
+  for (const k of KINDS) assert.equal(normalize({ t: 1, kind: k, file: 'a.js' }).kind, k);
+  assert.equal(normalize({ t: 1, kind: 'build' }), null, 'a build needs a file');
+  assert.deepEqual(normalize({ t: 1, kind: 'build', agent: 'c', file: '\\src\\play.js', lines: '214.4' }), { t: 1000, kind: 'build', agent: 'c', file: 'src/play.js', lines: 214 });
+  assert.equal(normalize({ t: 1, kind: 'build', file: 'x', lines: -3 }).lines, undefined);
 });
 
 test('normalize cleans strings: control characters out, caps applied', () => {
@@ -33,5 +36,5 @@ test('parseLines skips junk and torn lines, toLine round-trips', () => {
   const out = parseLines(text);
   assert.equal(out.length, 1);
   assert.deepEqual(out[0], good);
-  assert.ok(toLine(good).includes('"contract":"binas.event/0.1"'));
+  assert.ok(toLine(good).includes('"contract":"binas.event/0.2"'));
 });

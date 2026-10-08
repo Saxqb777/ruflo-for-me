@@ -62,7 +62,7 @@ test('the server serves the page, the web files, the demo, info and an SSE backl
     const eng = await get('/web/engine.js'); assert.equal(eng.status, 200); assert.ok(eng.type.includes('javascript'));
     const demo = await get('/demo/shift-014.jsonl'); assert.equal(demo.status, 200); assert.ok(demo.text.split('\n').length > 60);
     assert.equal((await get('/web/../package.json')).status, 404);
-    const info = JSON.parse((await get('/api/info')).text); assert.equal(info.events, 1); assert.equal(info.contract, 'binas.event/0.1');
+    const info = JSON.parse((await get('/api/info')).text); assert.equal(info.events, 1); assert.equal(info.contract, 'binas.event/0.2');
     const post = async (p, body) => { const r = await fetch(s.url.replace(/\/$/, '') + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json() }; };
     const bad = await post('/api/jobs', { title: 'x' }); assert.equal(bad.status, 400); assert.match(bad.body.error, /brief/);
     const made = await post('/api/jobs', { title: 'Board test', brief: 'Build a thing.', ship: 'branch' }); assert.equal(made.status, 201); assert.equal(made.body.state, 'queued'); assert.equal(made.body.ship, 'branch');

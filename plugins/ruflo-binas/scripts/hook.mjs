@@ -1,7 +1,7 @@
 // Claude Code hook entry. Reads the hook payload from stdin, maps it to Binas events, appends them to
 // .claude-flow/binas/events.jsonl, and keeps a small per-session correlation record beside it.
 // It never blocks a tool: every failure is swallowed, nothing is printed to stdout, exit code is always 0.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { appendEvent, logDir } from '../src/log.mjs';
 import { mapHook, emptyState } from '../src/adapters/claude-hooks.mjs';
@@ -29,6 +29,9 @@ function readStdin() {
     const job = process.env.BINAS_JOB ? { id: process.env.BINAS_JOB, name: process.env.BINAS_JOB_NAME } : null;
     let state = emptyState(payload.session_id, job);
     if (existsSync(stateFile)) { try { const s = JSON.parse(readFileSync(stateFile, 'utf8')); if (s && s.v === 1) state = s; } catch { /* fresh */ } }
+    // a written file's real size, for the maquette (small files only; never fatal)
+    const ti = payload.tool_input || {}; const wrote = ti.file_path || ti.notebook_path;
+    if (payload.hook_event_name === 'PostToolUse' && wrote) { try { const st = statSync(String(wrote)); if (st.isFile() && st.size < 2e6) payload.binas_lines = readFileSync(String(wrote), 'utf8').split('\n').length; } catch { /* gone or unreadable */ } }
     const out = mapHook(payload, state, Date.now());
     for (const e of out.events) appendEvent(root, e);
     writeFileSync(stateFile, JSON.stringify(out.state), { encoding: 'utf8', mode: 0o600 });

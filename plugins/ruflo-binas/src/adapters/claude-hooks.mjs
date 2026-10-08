@@ -1,10 +1,24 @@
 // Claude Code hook payload -> Binas events. Pure: mapHook(payload, state, nowMs) returns { events, state }.
 // The main session is the coordinator at the mailroom desk. Every Agent tool call is a subagent that gets a
 // desk by role, a paper by tube, and a done stamp when its result comes back. A git push is a shipment.
-import { basename } from 'node:path';
+import { basename, isAbsolute, relative } from 'node:path';
 
 const SHIP_RE = /\bgit\s+push\b|\bgh\s+pr\s+create\b|\bnpm\s+publish\b|\bvercel\b.*\b(--prod|deploy)\b|\bpnpm\s+publish\b/;
 const PERMISSION_RE = /permission|approve|allow|waiting for your input|needs your/i;
+const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
+/** A written file as the project sees it: relative to the session's folder, never an absolute path. */
+export function relFile(file, cwd) {
+  const f = String(file || ''); if (!f) return '';
+  if (cwd && isAbsolute(f)) { const r = relative(String(cwd), f); if (r && !r.startsWith('..') && !isAbsolute(r)) return r.split('\\').join('/'); }
+  return basename(f);
+}
+const linesOf = (p, input) => (Number.isFinite(p.binas_lines) ? p.binas_lines : typeof input.content === 'string' ? input.content.split('\n').length : null);
+/** While exactly one helper is out, the tool calls are its work, not the coordinator's. */
+const soleSub = (state) => { const v = Object.values(state.subs); return v.length === 1 ? v[0] : null; };
+function startSub(sub, now, events, text) {
+  if (sub.ls && now - sub.ls < 2000) return; sub.ls = now;
+  events.push({ t: now, kind: 'start', agent: sub.id, role: sub.role, paper: sub.paper, text, source: 'claude-hooks' });
+}
 const GENERIC_RE = /^(general-purpose|general|agent|task|worker|default|subagent)$/i;
 /** The role a subagent plays: its type, unless that is generic, then the "Role: …" prefix of its task line. */
 export function roleOf(input = {}) {
@@ -85,7 +99,7 @@ export function mapHook(payload, state, nowMs = Date.now()) {
         events.push({ t: nowMs, kind: 'join', agent: id, role, name: base, source: 'claude-hooks' });
         events.push({ t: nowMs + 1, kind: 'handoff', agent: state.main, role: 'coordinator', to: id, toRole: role, paper, text, source: 'claude-hooks' });
         events.push({ t: nowMs + 2, kind: 'start', agent: id, role, paper, text, source: 'claude-hooks' });
-      } else startMain(state, nowMs, events, describeTool(tool, input));
+      } else { const sub = soleSub(state); if (sub) startSub(sub, nowMs, events, describeTool(tool, input)); else startMain(state, nowMs, events, describeTool(tool, input)); }
       break;
     }
 
@@ -103,6 +117,10 @@ export function mapHook(payload, state, nowMs = Date.now()) {
       } else if (tool === 'Bash' && !failed && SHIP_RE.test(String(input.command || ''))) {
         events.push({ t: nowMs, kind: 'ship', agent: state.main, role: 'coordinator', paper: state.paper || undefined, text: short(input.description || input.command, 60), source: 'claude-hooks' });
         state.paper = nextPaper(state); // the next work is a new paper
+      }
+      if (FILE_TOOLS.has(tool) && !failed && (input.file_path || input.notebook_path)) {
+        const sub = soleSub(state);
+        events.push({ t: nowMs + 3, kind: 'build', agent: sub ? sub.id : state.main, role: sub ? sub.role : 'coordinator', to: state.main, file: relFile(input.file_path || input.notebook_path, p.cwd), lines: linesOf(p, input), source: 'claude-hooks' });
       }
       break;
     }

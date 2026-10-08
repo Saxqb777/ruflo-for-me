@@ -4,6 +4,9 @@ import { createScene } from './scene.js';
 import { createFlaps, setFlapText, flapAdvance, createAudio } from './board.js';
 import { createJobs } from './jobs.js';
 import { createShowroom } from './showroom.js';
+import { createBuildView } from './buildview.js';
+import { createTour } from './tour.js';
+import { tourSteps } from './guide.js';
 
 const $ = (id) => document.getElementById(id);
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -61,8 +64,9 @@ function loadCloud(floor = cloudFloor) {
 }
 $('keyForm').addEventListener('submit', (e) => { e.preventDefault(); keySet($('key').value.trim()); $('key').value = ''; loadCloud(); });
 /* The Factory panel on the local floor is the workshop's job board; on the cloud floor it is the showroom. */
+let buildView = null, tour = null;
 const factory = cloudMode
-  ? (() => { $('jobForm').hidden = true; $('jobList').hidden = true; $('showroom').hidden = false; $('factoryTitle').textContent = 'Showroom'; return createShowroom({ root: $('showroom'), status: $('jobStatus'), onFloor: (f) => { if (f && f !== cloudFloor) loadCloud(f); }, onUser: (u) => { if (!u) { $('floorName').textContent = 'A-01'; } } }); })()
+  ? (() => { $('jobForm').hidden = true; $('jobList').hidden = true; $('showroom').hidden = false; $('factoryTitle').textContent = 'Showroom'; return createShowroom({ root: $('showroom'), status: $('jobStatus'), onFloor: (f) => { if (f && f !== cloudFloor) loadCloud(f); }, onOpen: (p) => { if (buildView) buildView.setMode(p ? 'build' : 'floor'); }, onUser: (u) => { $('tourBtn').hidden = !u; if (!u) { $('floorName').textContent = 'A-01'; return; } if (tour) tour.maybeStart(u); } }); })()
   : createJobs({ section: $('factory'), form: $('jobForm'), list: $('jobList'), status: $('jobStatus'), enabled: isLoop && location.protocol !== 'file:' });
 function loadReplay(events, label, meta) {
   resetEngine(label, meta); events.sort((a, b) => a.t - b.t).forEach((e) => engine.push(e));
@@ -95,7 +99,10 @@ $('theme').onclick = () => { document.documentElement.setAttribute('data-theme',
 /* ---- selection ---- */
 function select(id) { selected = id; card.hidden = !id; legend.hidden = !!id; $('vFollow').disabled = !id; if (id) setView('follow', id); else if (scene.view === 'follow') setView('model'); }
 scene.onPick(select);
-function setView(v, id) { scene.setView(v, id); ['vPlan', 'vModel', 'vFollow'].forEach((b) => $(b).setAttribute('aria-pressed', String(b === 'v' + v[0].toUpperCase() + v.slice(1)))); }
+function setView(v, id) { if (buildView && buildView.mode === 'build') buildView.setMode('floor'); scene.setView(v, id); ['vPlan', 'vModel', 'vFollow'].forEach((b) => $(b).setAttribute('aria-pressed', String(b === 'v' + v[0].toUpperCase() + v.slice(1)))); }
+/* The Build view: the thing being built, on its own plate (see buildview.js). */
+buildView = createBuildView({ THREE, $, stage, getEngine: () => engine, getProject: () => (factory.current ? factory.current() : null), onMode: (m) => { if (m === 'build') ['vPlan', 'vModel', 'vFollow'].forEach((b) => $(b).setAttribute('aria-pressed', 'false')); else $('vModel').setAttribute('aria-pressed', String(scene.view !== 'plan' && scene.view !== 'follow')); } });
+if (cloudMode) { tour = createTour({ steps: (u) => tourSteps(u, { showroom: factory, setMode: (m) => buildView.setMode(m) }) }); $('tourBtn').onclick = () => tour.start(factory.user()); }
 $('vPlan').onclick = () => setView('plan'); $('vModel').onclick = () => setView('model'); $('vFollow').onclick = () => { if (selected) setView('follow', selected); };
 function renderCard(vw) {
   const a = vw.agents.find((x) => x.id === selected); if (!a) return;
@@ -113,7 +120,7 @@ $('snd').onclick = () => { audio.enable(!audio.enabled); $('snd').textContent = 
 $('live').onclick = () => { T.live = true; T.playing = true; };
 range.addEventListener('input', () => { const b = bounds(); T.now = b.t0 + (Number(range.value) / 1000) * (b.t1 - b.t0); T.live = false; lastNow = T.now; lastFeedN = -1; });
 const typing = (el) => !!el && (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) || el.isContentEditable);
-document.addEventListener('keydown', (e) => { if (typing(e.target)) return; if (e.code === 'Space') { e.preventDefault(); $('play').click(); } if (e.key === 'ArrowRight') { T.now += 2000; T.live = false; lastFeedN = -1; } if (e.key === 'ArrowLeft') { T.now -= 2000; T.live = false; lastFeedN = -1; } if (e.key === 'Escape') select(null); });
+document.addEventListener('keydown', (e) => { if (typing(e.target) || (tour && tour.open)) return; if (e.code === 'Space') { e.preventDefault(); $('play').click(); } if (e.key === 'ArrowRight') { T.now += 2000; T.live = false; lastFeedN = -1; } if (e.key === 'ArrowLeft') { T.now -= 2000; T.live = false; lastFeedN = -1; } if (e.key === 'Escape') select(null); });
 
 /* The "waiting for a yes" list is rebuilt only when its content changes, never per frame: a button that is
    replaced between mouse-down and mouse-up never receives its click. Countdowns update in place. */
@@ -142,7 +149,7 @@ function frame(ts) {
   lastNow = T.now;
   const vw = engine.view(T.now, { reduced: RM });
   const dayFrac = T.mode === 'live' ? (((new Date(T.now).getHours() * 60 + new Date(T.now).getMinutes()) - 480) / 600) : (T.now - b.t0) / Math.max(1, b.t1 - b.t0);
-  scene.render(vw, T.now, dt, Math.max(0, Math.min(1, dayFrac)), selected);
+  if (buildView.mode === 'build') buildView.render(vw, T.now, dt); else scene.render(vw, T.now, dt, Math.max(0, Math.min(1, dayFrac)), selected);
   flapAdvance(dt, (n) => audio.tick(n));
   setFlapText(F.cIn, String(vw.inN).padStart(2, '0'), 'dim'); setFlapText(F.cFloor, String(vw.floorN).padStart(2, '0'), ''); setFlapText(F.cBlocked, String(vw.blocked).padStart(2, '0'), vw.blocked ? 'warn' : 'dim'); setFlapText(F.cShipped, String(vw.shipped).padStart(3, '0'), vw.shipped ? 'ok' : 'dim');
   setFlapText(F.clock, clockStr(T.now), '');

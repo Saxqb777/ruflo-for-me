@@ -1,7 +1,7 @@
 // Binas event engine. Pure: no DOM, no three.js. The page, the demo generator and the node tests share it.
 // Feed it normalized events (see ../src/events.mjs); ask it for the world at any instant with view(nowMs).
-export const CONTRACT = 'binas.event/0.1';
-export const KINDS = ['join', 'leave', 'arrive', 'claim', 'start', 'handoff', 'block', 'unblock', 'done', 'fail', 'ship'];
+export const CONTRACT = 'binas.event/0.2';
+export const KINDS = ['join', 'leave', 'arrive', 'claim', 'start', 'handoff', 'block', 'unblock', 'done', 'fail', 'ship', 'build'];
 
 // Plan units are pixels on a 1200 x 720 sheet; world units are plan px * 0.1, centred on the sheet.
 export const PX = 0.1;
@@ -84,7 +84,7 @@ export function tubePath(S, T) {
   return [{ x: S.x, y: TRAY_Y + 0.2, z: S.z }, { x: S.x, y: TUBE_Y, z: S.z }, { x: S.x, y: TUBE_Y, z: 0 }, { x: T.x, y: TUBE_Y, z: 0 }, { x: T.x, y: TUBE_Y, z: T.z }, { x: T.x, y: TRAY_Y + 0.2, z: T.z }];
 }
 
-const LEVEL = { arrive: 'in', claim: 'move', handoff: 'move', start: 'info', block: 'warn', unblock: 'ok', done: 'ok', fail: 'bad', ship: 'ok', join: 'dim', leave: 'dim' };
+const LEVEL = { arrive: 'in', claim: 'move', handoff: 'move', start: 'info', block: 'warn', unblock: 'ok', done: 'ok', fail: 'bad', ship: 'ok', join: 'dim', leave: 'dim', build: 'move' };
 const short = (s, n = 72) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 
 /**
@@ -96,7 +96,10 @@ export function createEngine() {
   const taken = new Set();
   const agents = new Map(), papers = new Map(), trays = new Map();
   const stamps = [], notes = [], ships = [], feed = [], flashes = [], doors = [], sfx = [];
+  /* Projects: who works for whom (from handoffs), what was written (build events), and the round's trail. */
+  const parentOf = new Map(), builds = [], trail = [];
   let t0 = Infinity, t1 = -Infinity;
+  function rootOf(id) { let cur = id; for (let i = 0; i < 24 && parentOf.has(cur); i++) cur = parentOf.get(cur); return cur; }
 
   const feedLine = (t, kind, who, text) => feed.push({ t, lv: LEVEL[kind] || 'info', who, text });
   const setState = (a, t, s, text) => { a.states.push({ t, s, text }); };
@@ -153,12 +156,13 @@ export function createEngine() {
       const to = (e.to && ensureAgent(e.to, e.toRole, e.t)) || coordinator() || ensureAgent('main', 'coordinator', e.t, 'ME');
       trayRemove(p);
       const tr = to.slot.W.tray; const end = path(p, e.t, [CHUTE, { x: tr.x, y: 1.3, z: CHUTE.z }, { x: tr.x, y: TRAY_Y, z: tr.z }], SPEED.slide);
-      trayPlace(p, to, end); p.status.push({ t: e.t, s: 'in' }); sfx.push({ t: e.t, k: 'slide' });
+      trayPlace(p, to, end); p.status.push({ t: e.t, s: 'in' }); sfx.push({ t: e.t, k: 'slide' }); trail.push({ t: e.t, k: 'arrive', a: to.id, role: to.role });
       feedLine(e.t, 'arrive', 'IN', `${p.id} arrived · ${p.title}`);
     },
     claim(e) { H.handoff(e); },
     handoff(e) {
       const a = ensureAgent(e.agent, e.role, e.t); const to = ensureAgent(e.to, e.toRole, e.t); if (!to) return;
+      if (a) { const r = rootOf(a.id); if (r !== to.id && !parentOf.has(to.id) && rootOf(to.id) === to.id) parentOf.set(to.id, r); }
       const p = ensurePaper(e.paper, e.text, e.t);
       if (p.holder !== a.id) { trayRemove(p); trayPlace(p, a, e.t - 1); }
       trayRemove(p);
@@ -170,6 +174,15 @@ export function createEngine() {
       const a = ensureAgent(e.agent, e.role, e.t); if (!a) return;
       if (e.paper) { const p = ensurePaper(e.paper, e.text, e.t); if (p.holder !== a.id) { trayRemove(p); trayPlace(p, a, e.t); if (p.status[p.status.length - 1].s === 'none') p.status.push({ t: e.t, s: 'floor' }); } p.pos.push({ t: e.t, k: 'work' }); }
       setState(a, e.t, 'working', short(e.text, 90)); sfx.push({ t: e.t, k: 'click' }); feedLine(e.t, 'start', a.id, short(e.text, 90) || 'working');
+      trail.push({ t: e.t, k: 'start', a: a.id, role: a.role });
+      const m = /^(write|edit|multiedit|notebookedit) (\S+)$/i.exec(String(e.text || '')); // older hooks: the file is only in the task line
+      if (m) builds.push({ t: e.t, root: rootOf(a.id), file: m[2], lines: null, writer: a.id, est: true });
+    },
+    build(e) {
+      const a = ensureAgent(e.agent, e.role, e.t); if (!a || !e.file) return;
+      const root = e.to || rootOf(a.id);
+      builds.push({ t: e.t, root, file: String(e.file), lines: Number.isFinite(e.lines) ? e.lines : null, writer: a.id, est: false });
+      sfx.push({ t: e.t, k: 'click' }); feedLine(e.t, 'build', a.id, `built ${String(e.file).split('/').pop()}${Number.isFinite(e.lines) ? ' · ' + e.lines + ' lines' : ''}`);
     },
     block(e) {
       const a = ensureAgent(e.agent, e.role, e.t); if (!a) return; comeBack(a, e.t); // a question brings the worker back to wait at its desk
@@ -185,13 +198,14 @@ export function createEngine() {
     done(e) { H._verdict(e, false); },
     fail(e) { H._verdict(e, true); },
     _verdict(e, fail) {
-      const a = ensureAgent(e.agent, e.role, e.t); if (!a) return;
+      const a = ensureAgent(e.agent, e.role, e.t); if (!a) return; trail.push({ t: e.t, k: fail ? 'fail' : 'done', a: a.id, role: a.role });
       for (const n of notes) if (n.a === a.id && n.t1 === Infinity) n.t1 = e.t;
       stamps.push({ t: e.t, a: a.id, text: fail ? 'FAIL' : 'DONE', kind: fail ? 'fail' : 'done' });
       setState(a, e.t, 'done', '—'); setState(a, e.t + 900, 'idle', '—'); sfx.push({ t: e.t, k: 'thud' });
       feedLine(e.t, fail ? 'fail' : 'done', a.id, `${fail ? 'FAIL' : 'done'}${e.paper ? ' · ' + e.paper : ''}${e.text ? ' · ' + short(e.text, 70) : ''}`);
     },
     ship(e) {
+      trail.push({ t: e.t, k: 'ship', a: e.agent, role: e.role });
       const a = ensureAgent(e.agent, e.role, e.t); if (!a) return;
       const p = ensurePaper(e.paper || `ship-${ships.length + 1}`, e.text, e.t);
       if (p.holder !== a.id) { trayRemove(p); trayPlace(p, a, e.t - 1); }
@@ -242,5 +256,25 @@ export function createEngine() {
     return out;
   }
 
-  return { push, view, agents, papers, feed, notes, sfx, slots, bounds: () => ({ t0, t1 }), coordinator };
+  /** The files a project has written up to `now`, one entry per path, in first-written order. */
+  function files(root, now) {
+    const real = builds.some((b) => b.root === root && !b.est && b.t <= now); const m = new Map();
+    for (const b of builds) {
+      if (b.root !== root || b.t > now || (real && b.est)) continue;
+      const f = m.get(b.file) || { file: b.file, t0: b.t, t: b.t, lines: 0, touches: 0, writer: b.writer, est: b.est };
+      f.t = b.t; f.touches++; f.writer = b.writer; f.lines = b.lines !== null ? b.lines : Math.max(f.lines, f.touches * 24); m.set(b.file, f);
+    }
+    return [...m.values()];
+  }
+  /** The file being written right now (within the last 9 s), or null. */
+  function activeFile(root, now) {
+    let best = null; for (const b of builds) if (b.root === root && b.t <= now && now - b.t < 9000 && (!best || b.t >= best.t)) best = b;
+    return best ? { file: best.file, writer: best.writer, t: best.t } : null;
+  }
+  /** Projects on the floor, most recently active first. */
+  function roots() {
+    const last = new Map(); for (const x of trail) { const r = rootOf(x.a); if (r) last.set(r, Math.max(last.get(r) || 0, x.t)); } for (const b of builds) last.set(b.root, Math.max(last.get(b.root) || 0, b.t));
+    return [...last.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  }
+  return { push, view, agents, papers, feed, notes, sfx, slots, bounds: () => ({ t0, t1 }), coordinator, rootOf, files, activeFile, roots, trail };
 }

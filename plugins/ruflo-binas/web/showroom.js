@@ -10,13 +10,16 @@ const api = async (method, path, body) => { const r = await fetch(path, { method
 const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
 const btn = (label, onclick, cls) => { const b = el('button', cls, label); b.type = 'button'; b.onclick = onclick; return b; };
 
-export function createShowroom({ root, status, onFloor, onUser }) {
+export function createShowroom({ root, status, onFloor, onUser, onOpen }) {
   const $ = (sel) => root.querySelector(sel);
   const S = { user: null, floor: null, floors: [], approvals: [], projects: [], project: null, turns: [], sig: {}, timer: null, busy: false };
   const say = (s) => { status.textContent = s; };
   const changed = (key, value) => { const sig = JSON.stringify(value); if (S.sig[key] === sig) return false; S.sig[key] = sig; return true; };
   const owner = () => S.user && S.user.role === 'owner';
   const openAsk = (turns) => { const last = turns[turns.length - 1]; return last && last.kind === 'ask' && last.status === 'open' ? last : null; };
+  /** Select a project: the thread opens on the right, the stage switches to its Build view. */
+  function open(p) { S.project = p; S.turns = []; delete S.sig.thread; if (onOpen) onOpen(p); refresh(); }
+  function closeThread() { S.project = null; delete S.sig.projects; show(); if (onOpen) onOpen(null); }
 
   /* ---- sign in ---- */
   const login = $('#loginForm');
@@ -73,19 +76,40 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     const box = $('#projects'); if (!changed('projects', [S.projects, S.project && S.project.id])) return;
     box.replaceChildren(el('h3', 'sub', S.projects.length ? `Projects · ${S.projects.length}` : 'Projects'));
     if (!S.projects.length) box.appendChild(el('div', 'none', 'none yet. Open one below: say what it is, who it is for, what done looks like.'));
+    const q = questState(); if (!q.every((x) => x.done)) { const card = el('div', 'quest'); card.appendChild(el('div', 'qh', 'Your first build')); const ol = el('ol'); q.forEach((x) => { const li = el('li', x.done ? 'done' : '', x.label); ol.appendChild(li); }); card.appendChild(ol); box.appendChild(card); }
     for (const p of S.projects) {
-      const row = btn('', () => { S.project = p; S.turns = []; delete S.sig.thread; refresh(); }, 'projrow st-' + p.status + (S.project && S.project.id === p.id ? ' on' : ''));
+      const row = btn('', () => open(p), 'projrow st-' + p.status + (S.project && S.project.id === p.id ? ' on' : ''));
       row.append(el('span', 'ptitle', p.title), el('span', 'pstate', STATUS[p.status] || p.status), el('span', 'pmeta mono', `${p.turns} round${p.turns === 1 ? '' : 's'}${owner() ? ' · ' + money(p.costUsd) : ''}${owner() && !S.floor ? ' · ' + p.floor : ''}`));
       if (p.latest && p.latest.text) row.append(el('span', 'plast', (p.latest.author === 'binas' ? 'binas: ' : '') + p.latest.text.slice(0, 90)));
       box.appendChild(row);
     }
   }
+  /* ---- the first-build quest: four real milestones, checked off from what actually happened ---- */
+  function questState() {
+    const ps = S.projects; const any = (f) => ps.some(f);
+    return [
+      { label: 'Describe an idea', done: ps.length > 0 },
+      { label: 'Watch it get built', done: any((p) => p.turns > 0 || ['running', 'blocked'].includes(p.status)) },
+      { label: 'Open it live', done: any((p) => !!p.previewUrl) },
+      { label: 'Ask for one change', done: any((p) => p.turns > 1) },
+    ];
+  }
+  function quest() { delete S.sig.projects; }
+  /* ---- ideas for people staring at an empty box ---- */
+  const IDEAS = [
+    { label: 'A booking page for my barber shop', title: 'Barber booking', brief: 'A booking page for a small barber shop. Customers pick a barber, a service and a free time slot, then get a confirmation screen. It should feel warm and local, not corporate. Done when someone can book on a phone in under a minute.' },
+    { label: 'A football quiz game', title: 'Football quiz', brief: 'A quiz game about football for friends to play on their phones. Ten questions a round, a timer, a score at the end and a share button with the score. Bold and fun, like a stadium scoreboard. Done when a full round plays start to finish.' },
+    { label: 'A portfolio for my photos', title: 'Photo portfolio', brief: 'A portfolio site for my photography. A big full-screen gallery with a few albums, an about page and a contact form. Quiet and elegant so the photos do the talking. Done when it looks great on a phone and a laptop.' },
+    { label: 'A tracker for my gym sessions', title: 'Gym tracker', brief: 'A simple tracker for my gym sessions. I log exercises, sets and weights, and see my progress per exercise on a chart. It remembers everything in the browser. Done when I can log a session in under a minute on my phone.' },
+  ];
+  function fillIdea(i) { const f = $('#projectForm'); const it = IDEAS[i]; f.querySelector('[name=title]').value = it.title; f.querySelector('[name=brief]').value = it.brief; f.querySelector('[name=brief]').focus(); }
+  const ideaRow = $('#ideas'); if (ideaRow) IDEAS.forEach((it, i) => { const b = btn(it.label, () => fillIdea(i), 'chip'); ideaRow.appendChild(b); });
   const pf = $('#projectForm');
   pf.addEventListener('submit', async (e) => {
     e.preventDefault(); const f = new FormData(pf); say('opening…');
     const r = await api('POST', '/api/projects', { title: f.get('title'), brief: f.get('brief'), kind: f.get('kind') });
     if (!r.ok) { say(r.error || 'refused'); return; }
-    pf.reset(); say(r.approval ? 'opened · over your allowance, so it waits in the owner’s tray' : 'opened · the workshop picks it up'); S.project = r.project; S.turns = []; delete S.sig.thread; refresh();
+    pf.reset(); say(r.approval ? 'opened · over your allowance, so it waits in the owner’s tray' : 'opened · the workshop picks it up'); open(r.project); quest('opened');
   });
 
   /* ---- the thread ---- */
@@ -97,7 +121,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     const links = [p.previewUrl ? `<a href="${esc(p.previewUrl)}" target="_blank" rel="noopener">open the preview</a>` : '', p.repo ? `<a href="${esc(p.repo)}" target="_blank" rel="noopener">code</a>` : ''].filter(Boolean).join(' · ');
     head.innerHTML = `<div class="ttitle"></div><div class="tstate mono"></div>${links ? `<div class="tlinks">${links}</div>` : ''}`;
     head.querySelector('.ttitle').textContent = p.title; head.querySelector('.tstate').textContent = `${STATUS[p.status] || p.status}${owner() ? ' · ' + money(p.costUsd) + ' so far' : ''}`;
-    const acts = el('div', 'back'); acts.append(btn('All projects', () => { S.project = null; delete S.sig.projects; show(); }, 'quiet'), btn('Close', () => closeProject(p), 'quiet')); head.appendChild(acts);
+    const acts = el('div', 'back'); acts.append(btn('All projects', closeThread, 'quiet'), btn('Close', () => closeProject(p), 'quiet')); head.appendChild(acts);
     box.appendChild(head);
     const list = el('div', 'msgs');
     for (const t of S.turns) {
@@ -124,7 +148,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
   async function closeProject(p) {
     if (!confirm(`Close "${p.title}"? Nothing is deleted; queued work is withdrawn and it leaves the list.`)) return;
     const r = await api('DELETE', `/api/projects?project=${encodeURIComponent(p.id)}`); say(r.ok ? 'closed' : r.error || 'refused');
-    if (r.ok) { S.project = null; delete S.sig.projects; show(); refresh(); }
+    if (r.ok) { closeThread(); refresh(); }
   }
   async function send(text) {
     if (!S.project) return false; say('sending…');
@@ -158,5 +182,5 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     return send(text);
   }
   show(); refresh(); S.timer = setInterval(refresh, 3000);
-  return { question, answer, refresh, floor: () => S.floor, user: () => S.user, stop() { clearInterval(S.timer); } };
+  return { question, answer, refresh, floor: () => S.floor, user: () => S.user, current: () => ({ project: S.project, turns: S.turns }), ideas: IDEAS, fillIdea, stop() { clearInterval(S.timer); } };
 }

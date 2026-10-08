@@ -43,6 +43,30 @@ const SCRIPT = [
   [86.0, 'ship', { a: 'RL', p: 'P2' }],
 ];
 
+/* The pieces each desk writes per paper, for the Build view: [file, lines it ends at]. */
+const PIECES = {
+  'R1|P1': [['docs/webhook-research.md', 46]],
+  'AR|P1': [['docs/webhook-contract.md', 64]], 'AR|P2': [['docs/file-access.md', 58]],
+  'C2|P1': [['src/payments/webhook.js', 188], ['src/payments/retry.js', 96], ['src/payments/idempotency.js', 72]],
+  'C1|P2': [['src/uploads/signed-url.js', 132], ['src/uploads/store.js', 210], ['src/uploads/migrate.js', 84], ['index.html', 140]],
+  'C3|P3': [['src/dashboard/totals.js', 118], ['src/dashboard/summary-card.js', 92], ['src/dashboard/summary.css', 156], ['src/dashboard/footer.js', 40]],
+  'T1|P3': [['tests/totals.test.js', 104]], 'T1|P2': [['tests/signed-url.test.js', 120]], 'T2|P1': [['tests/webhook-replay.test.js', 142]],
+};
+/** Spread build events across each start → done span: every piece is written in two or three passes. */
+function addBuilds(events) {
+  const out = [];
+  for (const e of events) {
+    if (e.kind !== 'start' || !e.paper) continue;
+    const list = PIECES[`${e.agent}|${e.paper}`]; if (!list) continue;
+    const end = events.find((x) => x.agent === e.agent && x.t > e.t && (x.kind === 'done' || x.kind === 'fail'));
+    if (!end) continue;
+    const span = end.t - e.t; const passes = list.flatMap(([file, lines]) => [[file, Math.round(lines * 0.45)], [file, Math.round(lines * 0.8)], [file, lines]]);
+    const done = new Set(out.map((b) => b.agent + b.file + b.lines));
+    passes.forEach(([file, lines], i) => { if (done.has(e.agent + file + lines)) return; out.push({ t: e.t + Math.round(((i + 1) / (passes.length + 1)) * span), kind: 'build', source: 'demo', agent: e.agent, to: 'QN', file, lines }); });
+  }
+  return out;
+}
+
 export function buildDemo() {
   const eng = createEngine();
   const events = [];
@@ -65,6 +89,7 @@ export function buildDemo() {
     else if (kind === 'done' || kind === 'fail') { emit(t, kind, { agent: o.a, paper: o.p, text: o.text }); free[o.a] = t + 1.0; }
     else if (kind === 'ship') { const tr = W('RL').tray; const d = plen([{ x: tr.x, y: TRAY_Y, z: tr.z }, ...BELT]) / SPEED.belt; emit(t, 'ship', { agent: o.a, paper: o.p, text: PAPERS[o.p] }); free[o.a] = t + d; }
   }
+  events.push(...addBuilds(events));
   events.sort((a, b) => a.t - b.t);
   return events;
 }

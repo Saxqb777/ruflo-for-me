@@ -30,13 +30,14 @@ test('insertEvents is one parameterized multi-row insert; listEvents types the t
   assert.equal(n, 2);
   const q = f.calls[0].body;
   assert.ok(q.query.startsWith('INSERT INTO binas_events'));
-  assert.equal((q.query.match(/\$\d+/g) || []).length, 26);
-  assert.equal(q.params.length, 26);
+  assert.equal((q.query.match(/\$\d+/g) || []).length, 30);
+  assert.equal(q.params.length, 30);
   assert.equal(q.params[0], 'default'); assert.equal(q.params[1], 1); assert.equal(q.params[2], 'join');
   assert.ok(q.query.includes('"from"') && q.query.includes('"to"') && q.query.includes('to_role'));
-  const f2 = fakeFetch([{ id: '7', t: '1791365400000', kind: 'start', agent: 'me', role: null, name: null, paper: null, from: null, to: null, toRole: null, text: 'x', needs: null, source: 'hooks' }]);
+  const f2 = fakeFetch([{ id: '7', t: '1791365400000', kind: 'start', agent: 'me', role: null, name: null, paper: null, from: null, to: null, toRole: null, text: 'x', needs: null, source: 'hooks', file: null, lines: null }, { id: '8', t: '1791365400001', kind: 'build', agent: 'me', role: null, name: null, paper: null, from: null, to: 'job.p', toRole: null, text: null, needs: null, source: 'hooks', file: 'src/a.js', lines: '42' }]);
   const out = await listEvents(neonClient(CONN, f2), 'default', 5, 100);
-  assert.deepEqual(out, { events: [{ t: 1791365400000, kind: 'start', agent: 'me', text: 'x', source: 'hooks' }], cursor: 7 });
+  assert.deepEqual(out, { events: [{ t: 1791365400000, kind: 'start', agent: 'me', text: 'x', source: 'hooks' }, { t: 1791365400001, kind: 'build', agent: 'me', to: 'job.p', source: 'hooks', file: 'src/a.js', lines: 42 }], cursor: 8 });
+  assert.ok(SCHEMA_SQL.some((q) => q.includes('ADD COLUMN IF NOT EXISTS file')) && SCHEMA_SQL.some((q) => q.includes('ADD COLUMN IF NOT EXISTS lines')));
   assert.deepEqual(f2.calls[0].body.params, ['default', 5, 100]);
 });
 

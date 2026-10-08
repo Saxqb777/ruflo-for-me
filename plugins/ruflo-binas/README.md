@@ -129,6 +129,14 @@ The workshop polls `/api/work`, runs each turn with the Binas hooks pointed at t
 
 Questions from the floor are product questions only, in plain words, with 2 to 4 options and the recommended one first. Anything the machine itself refuses (a denied write, a missing tool) ends the turn with a `binas-blocked` block instead: the user reads one plain line, the owner gets the technical detail in the terminal and the thread. A workshop stopped mid-turn marks that turn as interrupted on its next start, so a project never stays stuck on "being built".
 
+## The Build view and the walkthrough
+
+Open a project and the stage stops showing the office and shows the thing being built: a maquette on its own plate, one block per file the team writes, grouped by folder, growing as lines are added. A print-head gantry rides to the file being written and drops a flare line onto it; test files turn green when the tests pass; a LIVE stamp lands when it ships, and then the site itself opens on the stage. Across the top, the round reads as eight plain stops (Understanding your idea, Designing the look, Planning the pieces, Building, Testing, Checking the look, Final review, Going live); along the bottom, one human sentence says what is happening and who is doing it. The **Build** button switches between the office and the model at any time, including on the demo.
+
+The hooks send a `build` event for every file written (path relative to the project, real line count), contract v0.2. Older logs still show a model, estimated from the task lines.
+
+The first time someone signs in, a game-style walkthrough points at each part of the screen in turn (eight steps, Back / Next / Skip, Enter and Esc); **How it works** replays it. Under Projects a first-build checklist ticks off four real milestones (describe an idea, watch it get built, open it live, ask for one change), and four idea chips under the brief show what a good description looks like.
+
 ## The workshop (the factory)
 
 Binas builds things, not just shows them. A job is a paper on the floor: you describe what to build, the workshop runs one headless Claude Code session per turn with the Ruflo pipeline, parks when the coordinator needs a decision, resumes with your answer, and ships.
@@ -174,7 +182,11 @@ web/scene.js                  the model, in three.js
 web/board.js                  split-flap cells and synthesized sound
 web/app.js                    sources, time, controls
 web/jobs.js                   the local Factory panel
-web/showroom.js               sign-in, projects as conversations, Building view, approvals tray
+web/showroom.js               sign-in, projects as conversations, Building view, approvals tray, quest, ideas
+web/buildview.js              the Build view: maquette, eight-stop rail, narration, live site
+web/maquette.js               the model of what is being built, in three.js
+web/stages.js                 the round as eight plain-word stops (pure)
+web/tour.js, web/guide.js     the first-run walkthrough and its steps
 demo/shift-014.jsonl          the recorded demo shift (scripts/make-demo-shift.mjs)
 ```
 

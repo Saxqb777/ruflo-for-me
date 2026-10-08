@@ -1,67 +1,118 @@
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"QN","role":"coordinator","name":"QN","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"R1","role":"researcher","name":"R1","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"R2","role":"researcher","name":"R2","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"AR","role":"architect","name":"AR","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"T1","role":"tester","name":"T1","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"T2","role":"tester","name":"T2","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"RV","role":"reviewer","name":"RV","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C1","role":"coder","name":"C1","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C2","role":"coder","name":"C2","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C3","role":"coder","name":"C3","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C4","role":"coder","name":"C4","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"RL","role":"release","name":"RL","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:00.600Z","kind":"arrive","source":"demo","paper":"P1","to":"QN","text":"Payments: retry webhook on 5xx","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:02.000Z","kind":"claim","source":"demo","agent":"QN","to":"R1","paper":"P1","text":"needs research first","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:05.000Z","kind":"start","source":"demo","agent":"R1","paper":"P1","text":"reading webhook retry + idempotency rules","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:06.500Z","kind":"arrive","source":"demo","paper":"P2","to":"QN","text":"Uploads: private files, signed links","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:08.000Z","kind":"claim","source":"demo","agent":"QN","to":"AR","paper":"P2","text":"security, straight to drafting","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:10.812Z","kind":"start","source":"demo","agent":"AR","paper":"P2","text":"drafting signed file reads, 15 min expiry","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:12.500Z","kind":"done","source":"demo","agent":"R1","paper":"P1","text":"retry schedule + dedupe key","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:13.500Z","kind":"handoff","source":"demo","agent":"R1","to":"AR","paper":"P1","text":"research notes","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:15.500Z","kind":"arrive","source":"demo","paper":"P3","to":"QN","text":"Dashboard: totals over the full query","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:17.000Z","kind":"claim","source":"demo","agent":"QN","to":"C3","paper":"P3","text":"small fix, no design needed","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:19.000Z","kind":"done","source":"demo","agent":"AR","paper":"P2","text":"plan: private store, signed GET, cleanup on delete","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:20.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C1","paper":"P2","text":"file access plan","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:20.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"totals: sum the query, not the page","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:23.000Z","kind":"start","source":"demo","agent":"AR","paper":"P1","text":"drafting webhook handler contract","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:24.000Z","kind":"start","source":"demo","agent":"C1","paper":"P2","text":"private files + signed reads","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:28.000Z","kind":"done","source":"demo","agent":"AR","paper":"P1","text":"contract ready","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:29.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C2","paper":"P1","text":"webhook contract","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:31.765Z","kind":"start","source":"demo","agent":"C2","paper":"P1","text":"webhook retry + idempotency key","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:32.000Z","kind":"block","source":"demo","agent":"C1","text":"flip existing uploads to private too?","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:33.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"footer uses server total","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:34.500Z","kind":"handoff","source":"demo","agent":"C3","to":"T1","paper":"P3","text":"totals fix","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:37.000Z","kind":"start","source":"demo","agent":"T1","paper":"P3","text":"testing totals across 3 pages","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:41.000Z","kind":"fail","source":"demo","agent":"T1","paper":"P3","text":"summary card still sums the page","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:42.000Z","kind":"handoff","source":"demo","agent":"T1","to":"C3","paper":"P3","text":"back with repro","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:44.000Z","kind":"unblock","source":"demo","agent":"C1","text":"yes, migrate existing uploads too","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:45.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"fix the summary card as well","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:48.000Z","kind":"done","source":"demo","agent":"C2","paper":"P1","text":"handler + 3 unit tests","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:49.000Z","kind":"handoff","source":"demo","agent":"C2","to":"T2","paper":"P1","text":"ready for replay test","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:51.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"both totals fixed","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:52.500Z","kind":"handoff","source":"demo","agent":"C3","to":"T1","paper":"P3","text":"retest","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:52.792Z","kind":"start","source":"demo","agent":"T2","paper":"P1","text":"replaying 5xx webhooks","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:54.725Z","kind":"start","source":"demo","agent":"T1","paper":"P3","text":"retesting totals","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:56.000Z","kind":"done","source":"demo","agent":"C1","paper":"P2","text":"migration + signed reads","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:57.000Z","kind":"handoff","source":"demo","agent":"C1","to":"T1","paper":"P2","text":"queue for test","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:57.500Z","kind":"done","source":"demo","agent":"T1","paper":"P3","text":"pass","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:30:58.500Z","kind":"handoff","source":"demo","agent":"T1","to":"RV","paper":"P3","text":"for review","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:00.500Z","kind":"done","source":"demo","agent":"T2","paper":"P1","text":"no duplicate charges on retry","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:00.832Z","kind":"start","source":"demo","agent":"RV","paper":"P3","text":"review: totals","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:01.500Z","kind":"handoff","source":"demo","agent":"T2","to":"RV","paper":"P1","text":"for review","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:01.500Z","kind":"start","source":"demo","agent":"T1","paper":"P2","text":"signed URLs expire at 15 min","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:03.000Z","kind":"done","source":"demo","agent":"RV","paper":"P3","text":"approved","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:04.000Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P3","text":"release","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:05.000Z","kind":"start","source":"demo","agent":"RV","paper":"P1","text":"review: webhook handler","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:06.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P3","text":"Dashboard: totals over the full query","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:08.500Z","kind":"done","source":"demo","agent":"RV","paper":"P1","text":"approved","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:09.500Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P1","text":"release","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:10.000Z","kind":"done","source":"demo","agent":"T1","paper":"P2","text":"pass, expiry enforced","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:11.000Z","kind":"handoff","source":"demo","agent":"T1","to":"RV","paper":"P2","text":"for review","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:12.000Z","kind":"ship","source":"demo","agent":"RL","paper":"P1","text":"Payments: retry webhook on 5xx","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:13.500Z","kind":"start","source":"demo","agent":"RV","paper":"P2","text":"security review: file access","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:16.000Z","kind":"block","source":"demo","agent":"RV","text":"retention: purge old uploads after a year?","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:22.000Z","kind":"unblock","source":"demo","agent":"RV","text":"yes, one year, then purge","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:23.000Z","kind":"done","source":"demo","agent":"RV","paper":"P2","text":"approved with retention rule","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:24.000Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P2","text":"release","contract":"binas.event/0.1"}
-{"t":"2026-10-07T09:31:26.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P2","text":"Uploads: private files, signed links","contract":"binas.event/0.1"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"QN","role":"coordinator","name":"QN","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"R1","role":"researcher","name":"R1","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"R2","role":"researcher","name":"R2","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"AR","role":"architect","name":"AR","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"T1","role":"tester","name":"T1","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"T2","role":"tester","name":"T2","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"RV","role":"reviewer","name":"RV","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C1","role":"coder","name":"C1","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C2","role":"coder","name":"C2","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C3","role":"coder","name":"C3","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"C4","role":"coder","name":"C4","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.000Z","kind":"join","source":"demo","agent":"RL","role":"release","name":"RL","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:00.600Z","kind":"arrive","source":"demo","paper":"P1","to":"QN","text":"Payments: retry webhook on 5xx","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:02.000Z","kind":"claim","source":"demo","agent":"QN","to":"R1","paper":"P1","text":"needs research first","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:05.000Z","kind":"start","source":"demo","agent":"R1","paper":"P1","text":"reading webhook retry + idempotency rules","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:06.500Z","kind":"arrive","source":"demo","paper":"P2","to":"QN","text":"Uploads: private files, signed links","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:06.875Z","kind":"build","source":"demo","agent":"R1","to":"QN","file":"docs/webhook-research.md","lines":21,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:08.000Z","kind":"claim","source":"demo","agent":"QN","to":"AR","paper":"P2","text":"security, straight to drafting","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:08.750Z","kind":"build","source":"demo","agent":"R1","to":"QN","file":"docs/webhook-research.md","lines":37,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:10.625Z","kind":"build","source":"demo","agent":"R1","to":"QN","file":"docs/webhook-research.md","lines":46,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:10.812Z","kind":"start","source":"demo","agent":"AR","paper":"P2","text":"drafting signed file reads, 15 min expiry","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:12.500Z","kind":"done","source":"demo","agent":"R1","paper":"P1","text":"retry schedule + dedupe key","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:12.859Z","kind":"build","source":"demo","agent":"AR","to":"QN","file":"docs/file-access.md","lines":26,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:13.500Z","kind":"handoff","source":"demo","agent":"R1","to":"AR","paper":"P1","text":"research notes","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:14.906Z","kind":"build","source":"demo","agent":"AR","to":"QN","file":"docs/file-access.md","lines":46,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:15.500Z","kind":"arrive","source":"demo","paper":"P3","to":"QN","text":"Dashboard: totals over the full query","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:16.953Z","kind":"build","source":"demo","agent":"AR","to":"QN","file":"docs/file-access.md","lines":58,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:17.000Z","kind":"claim","source":"demo","agent":"QN","to":"C3","paper":"P3","text":"small fix, no design needed","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:19.000Z","kind":"done","source":"demo","agent":"AR","paper":"P2","text":"plan: private store, signed GET, cleanup on delete","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:20.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C1","paper":"P2","text":"file access plan","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:20.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"totals: sum the query, not the page","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:21.038Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/totals.js","lines":53,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:22.077Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/totals.js","lines":94,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:23.000Z","kind":"start","source":"demo","agent":"AR","paper":"P1","text":"drafting webhook handler contract","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:23.115Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/totals.js","lines":118,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:24.000Z","kind":"start","source":"demo","agent":"C1","paper":"P2","text":"private files + signed reads","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:24.154Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/summary-card.js","lines":41,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:24.250Z","kind":"build","source":"demo","agent":"AR","to":"QN","file":"docs/webhook-contract.md","lines":29,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:25.192Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/summary-card.js","lines":74,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:25.500Z","kind":"build","source":"demo","agent":"AR","to":"QN","file":"docs/webhook-contract.md","lines":51,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:26.231Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/summary-card.js","lines":92,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:26.462Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/signed-url.js","lines":59,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:26.750Z","kind":"build","source":"demo","agent":"AR","to":"QN","file":"docs/webhook-contract.md","lines":64,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:27.269Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/summary.css","lines":70,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:28.000Z","kind":"done","source":"demo","agent":"AR","paper":"P1","text":"contract ready","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:28.308Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/summary.css","lines":125,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:28.923Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/signed-url.js","lines":106,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:29.000Z","kind":"handoff","source":"demo","agent":"AR","to":"C2","paper":"P1","text":"webhook contract","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:29.346Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/summary.css","lines":156,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:30.385Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/footer.js","lines":18,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:31.385Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/signed-url.js","lines":132,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:31.423Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/footer.js","lines":32,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:31.765Z","kind":"start","source":"demo","agent":"C2","paper":"P1","text":"webhook retry + idempotency key","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:32.000Z","kind":"block","source":"demo","agent":"C1","text":"flip existing uploads to private too?","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:32.462Z","kind":"build","source":"demo","agent":"C3","to":"QN","file":"src/dashboard/footer.js","lines":40,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:33.389Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/webhook.js","lines":85,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:33.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"footer uses server total","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:33.846Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/store.js","lines":95,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:34.500Z","kind":"handoff","source":"demo","agent":"C3","to":"T1","paper":"P3","text":"totals fix","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:35.012Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/webhook.js","lines":150,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:36.308Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/store.js","lines":168,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:36.636Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/webhook.js","lines":188,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:37.000Z","kind":"start","source":"demo","agent":"T1","paper":"P3","text":"testing totals across 3 pages","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:38.000Z","kind":"build","source":"demo","agent":"T1","to":"QN","file":"tests/totals.test.js","lines":47,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:38.259Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/retry.js","lines":43,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:38.769Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/store.js","lines":210,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:39.000Z","kind":"build","source":"demo","agent":"T1","to":"QN","file":"tests/totals.test.js","lines":83,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:39.883Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/retry.js","lines":77,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:40.000Z","kind":"build","source":"demo","agent":"T1","to":"QN","file":"tests/totals.test.js","lines":104,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:41.000Z","kind":"fail","source":"demo","agent":"T1","paper":"P3","text":"summary card still sums the page","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:41.231Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/migrate.js","lines":38,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:41.506Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/retry.js","lines":96,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:42.000Z","kind":"handoff","source":"demo","agent":"T1","to":"C3","paper":"P3","text":"back with repro","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:43.130Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/idempotency.js","lines":32,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:43.692Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/migrate.js","lines":67,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:44.000Z","kind":"unblock","source":"demo","agent":"C1","text":"yes, migrate existing uploads too","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:44.753Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/idempotency.js","lines":58,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:45.000Z","kind":"start","source":"demo","agent":"C3","paper":"P3","text":"fix the summary card as well","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:46.154Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"src/uploads/migrate.js","lines":84,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:46.377Z","kind":"build","source":"demo","agent":"C2","to":"QN","file":"src/payments/idempotency.js","lines":72,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:48.000Z","kind":"done","source":"demo","agent":"C2","paper":"P1","text":"handler + 3 unit tests","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:48.615Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"index.html","lines":63,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:49.000Z","kind":"handoff","source":"demo","agent":"C2","to":"T2","paper":"P1","text":"ready for replay test","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:51.077Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"index.html","lines":112,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:51.500Z","kind":"done","source":"demo","agent":"C3","paper":"P3","text":"both totals fixed","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:52.500Z","kind":"handoff","source":"demo","agent":"C3","to":"T1","paper":"P3","text":"retest","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:52.792Z","kind":"start","source":"demo","agent":"T2","paper":"P1","text":"replaying 5xx webhooks","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:53.538Z","kind":"build","source":"demo","agent":"C1","to":"QN","file":"index.html","lines":140,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:54.719Z","kind":"build","source":"demo","agent":"T2","to":"QN","file":"tests/webhook-replay.test.js","lines":64,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:54.725Z","kind":"start","source":"demo","agent":"T1","paper":"P3","text":"retesting totals","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:56.000Z","kind":"done","source":"demo","agent":"C1","paper":"P2","text":"migration + signed reads","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:56.646Z","kind":"build","source":"demo","agent":"T2","to":"QN","file":"tests/webhook-replay.test.js","lines":114,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:57.000Z","kind":"handoff","source":"demo","agent":"C1","to":"T1","paper":"P2","text":"queue for test","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:57.500Z","kind":"done","source":"demo","agent":"T1","paper":"P3","text":"pass","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:58.500Z","kind":"handoff","source":"demo","agent":"T1","to":"RV","paper":"P3","text":"for review","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:30:58.573Z","kind":"build","source":"demo","agent":"T2","to":"QN","file":"tests/webhook-replay.test.js","lines":142,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:00.500Z","kind":"done","source":"demo","agent":"T2","paper":"P1","text":"no duplicate charges on retry","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:00.832Z","kind":"start","source":"demo","agent":"RV","paper":"P3","text":"review: totals","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:01.500Z","kind":"handoff","source":"demo","agent":"T2","to":"RV","paper":"P1","text":"for review","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:01.500Z","kind":"start","source":"demo","agent":"T1","paper":"P2","text":"signed URLs expire at 15 min","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:03.000Z","kind":"done","source":"demo","agent":"RV","paper":"P3","text":"approved","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:03.625Z","kind":"build","source":"demo","agent":"T1","to":"QN","file":"tests/signed-url.test.js","lines":54,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:04.000Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P3","text":"release","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:05.000Z","kind":"start","source":"demo","agent":"RV","paper":"P1","text":"review: webhook handler","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:05.750Z","kind":"build","source":"demo","agent":"T1","to":"QN","file":"tests/signed-url.test.js","lines":96,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:06.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P3","text":"Dashboard: totals over the full query","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:07.875Z","kind":"build","source":"demo","agent":"T1","to":"QN","file":"tests/signed-url.test.js","lines":120,"contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:08.500Z","kind":"done","source":"demo","agent":"RV","paper":"P1","text":"approved","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:09.500Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P1","text":"release","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:10.000Z","kind":"done","source":"demo","agent":"T1","paper":"P2","text":"pass, expiry enforced","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:11.000Z","kind":"handoff","source":"demo","agent":"T1","to":"RV","paper":"P2","text":"for review","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:12.000Z","kind":"ship","source":"demo","agent":"RL","paper":"P1","text":"Payments: retry webhook on 5xx","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:13.500Z","kind":"start","source":"demo","agent":"RV","paper":"P2","text":"security review: file access","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:16.000Z","kind":"block","source":"demo","agent":"RV","text":"retention: purge old uploads after a year?","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:22.000Z","kind":"unblock","source":"demo","agent":"RV","text":"yes, one year, then purge","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:23.000Z","kind":"done","source":"demo","agent":"RV","paper":"P2","text":"approved with retention rule","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:24.000Z","kind":"handoff","source":"demo","agent":"RV","to":"RL","paper":"P2","text":"release","contract":"binas.event/0.2"}
+{"t":"2026-10-07T09:31:26.119Z","kind":"ship","source":"demo","agent":"RL","paper":"P2","text":"Uploads: private files, signed links","contract":"binas.event/0.2"}

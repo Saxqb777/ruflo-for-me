@@ -81,7 +81,7 @@ test('closing a project withdraws its queued work and hides it from the list; no
   const r = await projects(ctx({ method: 'DELETE', user: TESTER, sql, query: { project: 'prj_1' } }));
   assert.equal(r.status, 200); assert.equal(r.body.project.status, 'closed');
   assert.equal(sql.calls[2].params[1], 'rejected'); assert.equal(sql.calls[3].params[5], 'Project closed.'); assert.equal(sql.calls[4].params[1], 'closed');
-  const flag = sql.calls[5]; assert.ok(flag.query.startsWith('INSERT INTO binas_events'), 'the floor is told'); assert.deepEqual([flag.params[2], flag.params[3], flag.params[15], flag.params[16]], ['unblock', 'job.prj_1', 'leave', 'job.prj_1']); assert.equal(flag.params[0], 'tee');
+  const flag = sql.calls[5]; assert.ok(flag.query.startsWith('INSERT INTO binas_events'), 'the floor is told'); assert.deepEqual([flag.params[2], flag.params[3], flag.params[17], flag.params[18]], ['unblock', 'job.prj_1', 'leave', 'job.prj_1']); assert.equal(flag.params[0], 'tee');
   assert.ok(sql.calls.every((c) => !/^DELETE/i.test(c.query)));
   assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ status: 'running' })]]), query: { project: 'prj_1' } }))).status, 409);
   sql = scripted([[prow({ status: 'running' })], [trow({ status: 'running' })], [], [{ id: '3' }], [], [], [prow({ status: 'closed' })]]);

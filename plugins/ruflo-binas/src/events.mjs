@@ -1,4 +1,4 @@
-// Binas event contract v0.1: one JSON object per line.
+// Binas event contract v0.2: one JSON object per line. v0.2 adds `build` (a file written: `file`, `lines`).
 //   { "t": "2026-10-07T09:31:07.000Z", "kind": "start", "agent": "C1", "role": "coder",
 //     "paper": "P2", "to": "C1", "text": "private blobs + signed reads", "source": "claude-hooks" }
 // `t` (ISO string or epoch ms) and `kind` are required; everything else is optional.
@@ -9,7 +9,7 @@ import { KINDS, CONTRACT } from '../web/engine.js';
 export { KINDS, CONTRACT };
 
 const ALIAS = { failed: 'fail', complete: 'done', completed: 'done', finished: 'done', blocked: 'block', unblocked: 'unblock', resumed: 'unblock', shipped: 'ship', released: 'ship', joined: 'join', spawned: 'join', left: 'leave', assigned: 'claim', began: 'start', started: 'start' };
-const CAP = { agent: 48, paper: 64, text: 240, role: 40, name: 40, to: 48, from: 48, toRole: 40, needs: 160, source: 32 };
+const CAP = { agent: 48, paper: 64, text: 240, role: 40, name: 40, to: 48, from: 48, toRole: 40, needs: 160, source: 32, file: 200 };
 const CONTROL = /[\u0000-\u001F\u007F​-‏‪-‮⁦-⁩]/g;
 
 export function clean(v, cap) {
@@ -36,6 +36,9 @@ export function normalize(raw) {
   if (!KINDS.includes(kind)) return null;
   const e = { t, kind };
   for (const k of Object.keys(CAP)) { const v = clean(raw[k], CAP[k]); if (v !== undefined) e[k] = v; }
+  if (e.file) e.file = e.file.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (raw.lines !== undefined && raw.lines !== null && raw.lines !== '') { const n = Math.round(Number(raw.lines)); if (Number.isFinite(n) && n >= 0) e.lines = Math.min(n, 10000000); }
+  if (kind === 'build' && !e.file) return null;
   if (!e.agent && typeof raw.who === 'string') e.agent = clean(raw.who, CAP.agent);
   if (!e.text && typeof raw.title === 'string') e.text = clean(raw.title, CAP.text);
   return e;
