@@ -112,7 +112,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     const ask = openAsk(S.turns);
     if (ask && ask.options.length) { const opts = el('div', 'jopts'); ask.options.forEach((o) => opts.appendChild(btn(o, () => send(o)))); box.appendChild(opts); }
     const open = S.turns.find((t) => ['request', 'answer'].includes(t.kind) && ['queued', 'running', 'approval'].includes(t.status));
-    const form = el('form', 'composer'); const ta = el('textarea'); ta.rows = 2; ta.maxLength = 8000; ta.placeholder = ask ? 'or answer in your own words' : open ? `the floor is on turn ${open.n} (${open.status}) · you can type, it waits` : 'tell the floor what to change or add next'; ta.setAttribute('aria-label', 'Message');
+    const form = el('form', 'composer'); const ta = el('textarea'); ta.rows = 2; ta.maxLength = 8000; ta.placeholder = ask ? 'or answer in your own words' : open ? `turn ${open.n} is ${open.status === 'approval' ? 'in the owner’s tray' : open.status} · one message at a time, the next one goes after it finishes` : 'tell the floor what to change or add next'; ta.setAttribute('aria-label', 'Message');
     const sendB = el('button', '', ask ? 'Answer' : 'Send'); sendB.type = 'submit'; sendB.disabled = !!open && !ask;
     form.append(ta, sendB); form.addEventListener('submit', (e) => { e.preventDefault(); const v = ta.value.trim(); if (v) send(v); });
     ta.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') form.requestSubmit(); });

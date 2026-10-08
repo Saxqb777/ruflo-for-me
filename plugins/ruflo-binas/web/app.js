@@ -112,7 +112,8 @@ $('speed').onclick = () => { T.speed = T.speed === 1 ? 4 : T.speed === 4 ? 10 : 
 $('snd').onclick = () => { audio.enable(!audio.enabled); $('snd').textContent = audio.enabled ? 'Sound on' : 'Sound off'; $('snd').setAttribute('aria-pressed', String(audio.enabled)); };
 $('live').onclick = () => { T.live = true; T.playing = true; };
 range.addEventListener('input', () => { const b = bounds(); T.now = b.t0 + (Number(range.value) / 1000) * (b.t1 - b.t0); T.live = false; lastNow = T.now; lastFeedN = -1; });
-document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; if (e.code === 'Space') { e.preventDefault(); $('play').click(); } if (e.key === 'ArrowRight') { T.now += 2000; T.live = false; lastFeedN = -1; } if (e.key === 'ArrowLeft') { T.now -= 2000; T.live = false; lastFeedN = -1; } if (e.key === 'Escape') select(null); });
+const typing = (el) => !!el && (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) || el.isContentEditable);
+document.addEventListener('keydown', (e) => { if (typing(e.target)) return; if (e.code === 'Space') { e.preventDefault(); $('play').click(); } if (e.key === 'ArrowRight') { T.now += 2000; T.live = false; lastFeedN = -1; } if (e.key === 'ArrowLeft') { T.now -= 2000; T.live = false; lastFeedN = -1; } if (e.key === 'Escape') select(null); });
 
 /* The "waiting for a yes" list is rebuilt only when its content changes, never per frame: a button that is
    replaced between mouse-down and mouse-up never receives its click. Countdowns update in place. */

@@ -104,7 +104,7 @@ export async function monthUsage(sql, floor, now = Date.now()) {
 export async function floorStats(sql, floors = null, now = Date.now()) {
   const params = [monthStart(now)]; const where = floors ? `WHERE u.floor IN (${inList(floors, params)})` : '';
   const rows = await sql(`SELECT u.id, u.username, u.display, u.role, u.floor, u.allowance_usd,
-    (SELECT count(*) FROM ${T_PROJECTS} p WHERE p.floor = u.floor) AS projects,
+    (SELECT count(*) FROM ${T_PROJECTS} p WHERE p.floor = u.floor AND p.status <> 'closed') AS projects,
     (SELECT count(*) FROM ${T_PROJECTS} p WHERE p.floor = u.floor AND p.status IN ('running','blocked')) AS active,
     (SELECT count(*) FROM ${T_TURNS} t WHERE t.floor = u.floor AND t.status = 'approval') AS approvals,
     (SELECT max(t) FROM binas_events e WHERE e.floor = u.floor) AS last_event,

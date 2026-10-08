@@ -121,7 +121,7 @@ test('approvals: owner only; approve queues the turn, reject parks the project',
 test('floors: the owner sees the building, a tester only their own floor', async () => {
   let sql = scripted([[{ id: '1', username: 'sax', display: 'Sax', role: 'owner', floor: 'main', allowance_usd: null, projects: '2', active: '1', approvals: '0', last_event: '5', used: '1.5' }]]);
   const all = await floors(ctx({ user: OWNER, sql })); assert.equal(all.body.floors[0].usedUsd, 1.5); assert.equal(all.body.floors[0].allowanceUsd, null); assert.ok(!sql.calls[0].query.includes('WHERE u.floor'));
-  sql = scripted([[]]); await floors(ctx({ user: TESTER, sql })); assert.ok(sql.calls[0].query.includes('WHERE u.floor IN')); assert.equal(sql.calls[0].params[1], 'tee');
+  sql = scripted([[]]); await floors(ctx({ user: TESTER, sql })); assert.ok(sql.calls[0].query.includes('WHERE u.floor IN')); assert.equal(sql.calls[0].params[1], 'tee'); assert.ok(sql.calls[0].query.includes("p.status <> 'closed') AS projects"), 'closed projects are not counted');
 });
 
 test('work: the workshop pulls queued turns with their projects and reports each state back', async () => {

@@ -54,6 +54,7 @@ step('demo shift is reproducible from scripts/make-demo-shift.mjs', () => {
 });
 step('no standalone MCP prefix in the plugin', () => !readdirSync(ROOT, { recursive: true }).some((f) => { const p = join(ROOT, String(f)); try { return /\.(m?js|md|json)$/.test(p) && !/node_modules/.test(p) && readFileSync(p, 'utf8').includes('mcp__claude-flow' + '__'); } catch { return false; } }));
 step('README documents the contract and the hook table', () => { const r = read('README.md'); return r.includes('Event contract') && r.includes('UserPromptSubmit') && r.includes('git push'); });
+step('keyboard shortcuts never fire while typing in a text box', () => { const a = read('web/app.js'); return a.includes("['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(el.tagName) || el.isContentEditable") && a.includes('if (typing(e.target)) return;'); });
 step('web page loads three.js only from cdnjs and fonts only from Google Fonts', () => { const h = read('web/index.html'); const srcs = [...h.matchAll(/https?:\/\/[^"' )]+/g)].map((m) => m[0]); return srcs.every((u) => u.startsWith('https://cdnjs.cloudflare.com/') || u.startsWith('https://fonts.googleapis.com') || u.startsWith('https://fonts.gstatic.com')); });
 
 step('node --test tests/*.test.mjs passes', () => {
