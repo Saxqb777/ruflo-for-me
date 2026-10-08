@@ -23,9 +23,10 @@ export function layoutFiles(files) {
   for (const f of [...files].sort((a, b) => a.t0 - b.t0 || String(a.file).localeCompare(String(b.file)))) { const d = districtOf(f.file); if (!groups.has(d)) groups.set(d, []); groups.get(d).push(f); }
   const districts = []; let x = 0, z = 0, rowDepth = 0;
   for (const [name, list] of groups) {
-    const rows = Math.ceil(list.length / COLS), w = COLS * CELL, d = Math.max(1, rows) * CELL;
+    const cols = list.length > 24 ? 8 : list.length > 12 ? 6 : COLS; // widens twice as a folder grows; blocks glide to their new spots
+    const rows = Math.ceil(list.length / cols), w = cols * CELL, d = Math.max(1, rows) * CELL;
     if (x > 0 && x + w > MAX_ROW) { x = 0; z += rowDepth + GAP + 2; rowDepth = 0; }
-    districts.push({ name, x, z, w, d, count: list.length, cells: list.map((f, i) => ({ file: f.file, cx: x + (i % COLS) * CELL + CELL / 2, cz: z + Math.floor(i / COLS) * CELL + CELL / 2 })) });
+    districts.push({ name, x, z, w, d, count: list.length, cells: list.map((f, i) => ({ file: f.file, cx: x + (i % cols) * CELL + CELL / 2, cz: z + Math.floor(i / cols) * CELL + CELL / 2 })) });
     x += w + GAP; rowDepth = Math.max(rowDepth, d);
   }
   const width = districts.length ? Math.max(...districts.map((d) => d.x + d.w)) : COLS * CELL;
@@ -61,7 +62,7 @@ export function createMaquette(THREE, canvas, stage, labelsEl) {
     const c = pcan.getContext('2d'); c.fillStyle = '#F7F6F3'; c.fillRect(0, 0, 2048, 2048);
     const step = 2048 / PLATE; c.lineWidth = 1; for (let i = 0; i <= PLATE; i++) { c.strokeStyle = i % 5 ? '#E3E0D8' : '#CFCBC1'; c.beginPath(); c.moveTo(i * step, 0); c.lineTo(i * step, 2048); c.stroke(); c.beginPath(); c.moveTo(0, i * step); c.lineTo(2048, i * step); c.stroke(); }
     const ox = -lay.width / 2, oz = -lay.depth / 2;
-    if (!lay.districts.length) { c.setLineDash([14, 10]); c.strokeStyle = '#6B6B75'; c.lineWidth = 3; c.strokeRect(toPx(-14), toPx(-8), 28 * step, 16 * step); c.setLineDash([]); c.fillStyle = '#57575F'; c.font = '600 30px Archivo'; c.textAlign = 'center'; c.fillText('SITE · WAITING FOR THE FIRST PIECE', 1024, toPx(0) + 10); c.textAlign = 'left'; }
+    if (!lay.districts.length) { c.setLineDash([14, 10]); c.strokeStyle = '#6B6B75'; c.lineWidth = 3; c.strokeRect(toPx(-14), toPx(-8), 28 * step, 16 * step); c.setLineDash([]); c.fillStyle = '#57575F'; c.font = '600 20px Archivo'; c.textAlign = 'center'; c.fillText('SITE · WAITING FOR THE FIRST PIECE', 1024, toPx(0) + 7); c.textAlign = 'left'; }
     for (const d of lay.districts) {
       const x = toPx(ox + d.x - 0.6), z = toPx(oz + d.z - 0.6), w = (d.w + 1.2) * step, h = (d.d + 1.2) * step;
       c.strokeStyle = '#14141A'; c.lineWidth = 2.5; c.strokeRect(x, z, w, h); c.setLineDash([10, 8]); c.strokeStyle = '#8A8A93'; c.lineWidth = 1.5; c.strokeRect(x + 8, z + 8, w - 16, h - 16); c.setLineDash([]);

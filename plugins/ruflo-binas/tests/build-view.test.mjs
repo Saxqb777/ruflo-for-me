@@ -71,6 +71,7 @@ test('the maquette layout is stable: districts in first-seen order, four across,
   for (const file of ['DESIGN.md', 'src/a.js', 'src/b.js']) assert.deepEqual(pos(b, file), pos(a, file), file + ' stayed put');
   const many = layoutFiles(Array.from({ length: 9 }, (_, i) => f(`d${i}/x.js`, i))); assert.ok(many.districts.some((d) => d.z > 0), 'districts wrap into rows'); assert.ok(many.width <= 60);
   assert.deepEqual(layoutFiles([]).districts, []);
+  const big = layoutFiles(Array.from({ length: 51 }, (_, i) => f(`x${i}.js`, i))); assert.equal(big.districts[0].w, 8 * 3.4, 'a big folder widens instead of becoming a strip'); assert.ok(big.depth < big.width);
 });
 
 test('the hooks emit a build for every written file, relative to the project, attributed to the helper at work', () => {
