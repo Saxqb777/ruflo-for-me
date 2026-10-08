@@ -82,6 +82,8 @@ test('closing a project withdraws its queued work and hides it from the list; no
   assert.equal(sql.calls[2].params[1], 'rejected'); assert.equal(sql.calls[3].params[5], 'Project closed.'); assert.equal(sql.calls[4].params[1], 'closed');
   assert.ok(sql.calls.every((c) => !/^DELETE/i.test(c.query)));
   assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ status: 'running' })]]), query: { project: 'prj_1' } }))).status, 409);
+  sql = scripted([[prow({ status: 'running' })], [trow({ status: 'running' })], [], [{ id: '3' }], [], [prow({ status: 'closed' })]]);
+  assert.equal((await projects(ctx({ method: 'DELETE', user: OWNER, sql, query: { project: 'prj_1' } }))).status, 200, 'the owner can close a stuck project'); assert.equal(sql.calls[2].params[1], 'failed');
   assert.equal((await projects(ctx({ method: 'DELETE', user: TESTER, sql: scripted([[prow({ floor: 'main' })]]), query: { project: 'prj_1' } }))).status, 404);
   sql = scripted([[]]); await projects(ctx({ user: TESTER, sql })); assert.ok(sql.calls[0].query.includes("status <> 'closed'"));
   sql = scripted([[]]); await projects(ctx({ user: TESTER, sql, query: { all: '1' } })); assert.ok(!sql.calls[0].query.includes("status <> 'closed'"));
@@ -119,8 +121,8 @@ test('approvals: owner only; approve queues the turn, reject parks the project',
 });
 
 test('floors: the owner sees the building, a tester only their own floor', async () => {
-  let sql = scripted([[{ id: '1', username: 'sax', display: 'Sax', role: 'owner', floor: 'main', allowance_usd: null, projects: '2', active: '1', approvals: '0', last_event: '5', used: '1.5' }]]);
-  const all = await floors(ctx({ user: OWNER, sql })); assert.equal(all.body.floors[0].usedUsd, 1.5); assert.equal(all.body.floors[0].allowanceUsd, null); assert.ok(!sql.calls[0].query.includes('WHERE u.floor'));
+  let sql = scripted([[{ id: '1', username: 'sax', display: 'Sax', role: 'owner', floor: 'main', allowance_usd: null, projects: '2', active: '1', approvals: '0', snags: '1', last_event: '5', used: '1.5' }]]);
+  const all = await floors(ctx({ user: OWNER, sql })); assert.equal(all.body.floors[0].usedUsd, 1.5); assert.equal(all.body.floors[0].snags, 1); assert.equal(all.body.floors[0].allowanceUsd, null); assert.ok(!sql.calls[0].query.includes('WHERE u.floor'));
   sql = scripted([[]]); await floors(ctx({ user: TESTER, sql })); assert.ok(sql.calls[0].query.includes('WHERE u.floor IN')); assert.equal(sql.calls[0].params[1], 'tee'); assert.ok(sql.calls[0].query.includes("p.status <> 'closed') AS projects"), 'closed projects are not counted');
 });
 
@@ -136,13 +138,15 @@ test('work: the workshop pulls queued turns with their projects and reports each
   assert.equal(sql.calls[2].params[1], 'running'); assert.equal(sql.calls[2].params[2], 's1'); assert.ok(sql.calls[3].query.includes('session_id'));
   sql = scripted([[trow({ status: 'running' })], [prow({ status: 'running' })], [], [{ id: '11' }], [], [trow({ status: 'blocked' })], [prow({ status: 'blocked' })]]);
   await work(ctx({ method: 'POST', sql, body: { turn: 10, status: 'blocked', question: { text: 'Dark mode?', options: ['yes', 'no'], context: 'palette' } } }));
-  const ask = sql.calls[3]; assert.equal(ask.params[4], 'ask'); assert.equal(ask.params[5], 'Dark mode?'); assert.equal(ask.params[6], '["yes","no"]'); assert.equal(ask.params[9], 'open'); assert.equal(sql.calls[4].params[1], 'blocked');
+  const ask = sql.calls[3]; assert.equal(ask.params[4], 'ask'); assert.equal(ask.params[5], 'Dark mode?'); assert.equal(ask.params[6], '["yes","no"]'); assert.equal(ask.params[9], 'open'); assert.equal(ask.params[12], '{"recommended":false}'); assert.equal(sql.calls[4].params[1], 'blocked');
   sql = scripted([[trow({ status: 'running' })], [prow({ status: 'running' })], [], [{ id: '12' }], [], [trow({ status: 'done' })], [prow({ status: 'idle' })]]);
   const done = await work(ctx({ method: 'POST', sql, body: { turn: 10, status: 'done', costUsd: 0.1234567, sessionId: 's1', report: { summary: 'Built.', whatChanged: ['a', 'b'], howToOpen: 'open index.html', next: ['c'] }, links: { preview: 'https://p.vercel.app', remote: 'https://github.com/x/y' } } }));
   assert.equal(done.status, 200); assert.equal(sql.calls[2].params[3], 0.1235); const rep = sql.calls[3]; assert.equal(rep.params[4], 'report'); assert.equal(rep.params[5], 'Built.'); assert.equal(rep.params[6], '["a","b"]'); assert.ok(rep.params[13].includes('Open: open index.html') && rep.params[13].includes('Next: c'));
   assert.ok(sql.calls[4].query.includes('turns = turns + 1') && sql.calls[4].query.includes('cost_usd = cost_usd +')); assert.ok(sql.calls[4].params.includes('https://p.vercel.app'));
   sql = scripted([[trow({ status: 'running' })], [prow({ status: 'running' })], [], [{ id: '13' }], [], [trow({ status: 'failed' })], [prow({ status: 'failed' })]]);
-  await work(ctx({ method: 'POST', sql, body: { turn: 10, status: 'failed', error: 'exit 3' } })); assert.ok(sql.calls[3].params[5].includes('exit 3')); assert.equal(sql.calls[4].params[1], 'failed');
+  await work(ctx({ method: 'POST', sql, body: { turn: 10, status: 'failed', error: 'exit 3', plain: 'The floor was interrupted.' } })); assert.equal(sql.calls[3].params[5], 'The floor was interrupted.'); assert.ok(sql.calls[3].params[13].includes('detail: exit 3')); assert.equal(sql.calls[4].params[1], 'failed');
+  sql = scripted([[trow({ status: 'running' })], [prow({ status: 'running' })], [], [{ id: '13' }], [], [trow({ status: 'failed' })], [prow({ status: 'failed' })]]);
+  await work(ctx({ method: 'POST', sql, body: { turn: 10, status: 'failed', error: 'exit 3' } })); assert.ok(sql.calls[3].params[5].includes('hit a snag'), 'no plain line given: the default one');
   sql = scripted([[trow({ status: 'running' })], [prow({ status: 'running' })], [], [trow()], [prow()]]);
   await work(ctx({ method: 'POST', sql, body: { turn: 10, status: 'progress', progress: 'reading the brief' } })); assert.ok(sql.calls[2].query.startsWith('UPDATE binas_turns SET note'));
 });

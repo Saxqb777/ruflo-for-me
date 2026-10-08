@@ -107,10 +107,11 @@ export async function floorStats(sql, floors = null, now = Date.now()) {
     (SELECT count(*) FROM ${T_PROJECTS} p WHERE p.floor = u.floor AND p.status <> 'closed') AS projects,
     (SELECT count(*) FROM ${T_PROJECTS} p WHERE p.floor = u.floor AND p.status IN ('running','blocked')) AS active,
     (SELECT count(*) FROM ${T_TURNS} t WHERE t.floor = u.floor AND t.status = 'approval') AS approvals,
+    (SELECT count(*) FROM ${T_PROJECTS} p WHERE p.floor = u.floor AND p.status = 'failed') AS snags,
     (SELECT max(t) FROM binas_events e WHERE e.floor = u.floor) AS last_event,
     (SELECT ${USED_SQL} FROM ${T_TURNS} t WHERE t.floor = u.floor AND t.kind IN ('request','answer') AND t.status NOT IN ('rejected','approval') AND t.created_at >= $1) AS used
     FROM ${T_USERS} u ${where} ORDER BY (u.role = 'owner') DESC, u.username`, params);
-  return rows.map((r) => ({ user: { id: num(r.id), username: r.username, display: r.display, role: r.role }, floor: r.floor, allowanceUsd: opt(r.allowance_usd), usedUsd: num(r.used), projects: num(r.projects), active: num(r.active), approvals: num(r.approvals), lastEvent: opt(r.last_event) }));
+  return rows.map((r) => ({ user: { id: num(r.id), username: r.username, display: r.display, role: r.role }, floor: r.floor, allowanceUsd: opt(r.allowance_usd), usedUsd: num(r.used), projects: num(r.projects), active: num(r.active), approvals: num(r.approvals), snags: num(r.snags), lastEvent: opt(r.last_event) }));
 }
 
 /** The INSERT that adds a user, for the Neon SQL editor. Only the hash travels; the password never does. */

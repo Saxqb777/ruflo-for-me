@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 import { startServer } from '../src/server.mjs';
 import { appendEvent, followEvents, readEvents } from '../src/log.mjs';
 import { makeJob, saveJob, listJobs, answerJob } from '../src/factory/jobs.mjs';
-import { createRunner } from '../src/factory/runner.mjs';
+import { createRunner, defaultRoot, insidePlugin, PLUGIN_ROOT_ERROR } from '../src/factory/runner.mjs';
 import { createBoard } from '../src/factory/board.mjs';
 import { hashPassword, newPassword, usernameOk } from '../src/cloud/auth.mjs';
 import { userInsertSql } from '../src/cloud/store.mjs';
@@ -25,7 +25,7 @@ const argv = process.argv.slice(2);
 const cmd = argv[0] || 'help';
 const flag = (name, dflt) => { const i = argv.indexOf(name); return i > 0 && argv[i + 1] !== undefined ? argv[i + 1] : dflt; };
 const has = (name) => argv.includes(name);
-const root = resolve(flag('--root', process.env.CLAUDE_PROJECT_DIR || process.cwd()));
+const root = flag('--root') ? resolve(flag('--root')) : defaultRoot(process.env.CLAUDE_PROJECT_DIR || process.cwd());
 const port = Number(flag('--port', process.env.BINAS_PORT || 4777));
 const out = (s) => process.stdout.write(s + '\n');
 const die = (s, code = 2) => { console.error(s); process.exit(code); };
@@ -55,11 +55,12 @@ switch (cmd) {
     const bin = flag('--claude', process.env.BINAS_CLAUDE_BIN || 'claude');
     const probe = spawnSync(bin, ['--version'], { encoding: 'utf8' });
     if (probe.error || probe.status !== 0) die(`cannot run "${bin}". Install Claude Code and log in (claude login), or pass --claude <path>.`, 1);
+    if (insidePlugin(root)) die(PLUGIN_ROOT_ERROR, 1);
     const cloudUrl = flag('--cloud', process.env.BINAS_CLOUD_URL || ''); const key = flag('--key', process.env.BINAS_KEY || '');
     if (cloudUrl && !key) die('--cloud needs --key (or BINAS_KEY): the master key of the showroom', 1);
     const board = cloudUrl ? createBoard({ url: cloudUrl, key, floor: flag('--floor', 'all') }) : null;
     const runner = createRunner({ root, claude: { bin, prefixArgs: [] }, sandbox: flag('--sandbox', 'none'), floor: board ? null : flag('--floor', process.env.BINAS_FLOOR || null), board, log: out });
-    out(`Binas workshop  root ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key and host tokens stripped from sessions)\n  board    ${board ? board.url + ' (floor ' + flag('--floor', 'all') + ')' : 'local only (add --cloud <url> --key <key> for the showroom)'}\n  github   ${process.env.BINAS_GITHUB_OWNER ? 'repos under ' + process.env.BINAS_GITHUB_OWNER : 'no BINAS_GITHUB_OWNER: nothing pushed for new projects'}\n  preview  ${process.env.VERCEL_TOKEN ? 'vercel deploy --prod after every web turn' : 'no VERCEL_TOKEN: no previews'}\n  jobs     ${listJobs(root).length} on file`);
+    out(`Binas workshop  projects and log under ${root}\n  claude   ${bin} (${probe.stdout.trim()})\n  sandbox  ${flag('--sandbox', 'none')}\n  fuel     the login on this machine (API key and host tokens stripped from sessions)\n  board    ${board ? board.url + ' (floor ' + flag('--floor', 'all') + ')' : 'local only (add --cloud <url> --key <key> for the showroom)'}\n  github   ${process.env.BINAS_GITHUB_OWNER ? 'repos under ' + process.env.BINAS_GITHUB_OWNER : 'no BINAS_GITHUB_OWNER: code stays on this machine'}\n  preview  ${process.env.VERCEL_TOKEN ? 'every web turn ends with a live link (binas-<floor>-<slug>.vercel.app)' : 'NO VERCEL_TOKEN: web projects get no live link. export VERCEL_TOKEN=… and restart'}\n  jobs     ${listJobs(root).length} on file`);
     if (has('--once')) { runner.tick().then((j) => { out(j ? `worked on ${j.id} → ${j.state}` : 'nothing to do'); process.exit(0); }).catch((e) => die(e.message, 1)); }
     else { const stop = runner.start(Number(flag('--poll', 3000))); out('  watching for jobs · Ctrl-C to stop'); process.on('SIGINT', () => { stop(); process.exit(0); }); }
     break;

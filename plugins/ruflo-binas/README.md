@@ -119,11 +119,16 @@ Run the workshop against the showroom on a machine with a Claude login:
 
 ```bash
 export BINAS_GITHUB_OWNER=<your GitHub user>   # new projects become private repos there (needs gh, logged in)
-export VERCEL_TOKEN=<token>                    # web projects get `vercel deploy --prod` after every turn
+export VERCEL_TOKEN=<token>                    # every web turn ends with a live link at binas-<floor>-<slug>.vercel.app
+export VERCEL_TEAM_ID=<team id>                # optional: deploy into a team instead of the token's personal scope
 node bin/binas.mjs run --cloud https://binas.vercel.app --key <the master key> [--sandbox docker]
 ```
 
+Projects and the log live under `~/binas` (or `--root <dir>`, or `BINAS_HOME`), never inside this plugin folder: Claude Code treats a loaded plugin's files as sensitive and refuses to write there, which the workshop detects and refuses up front.
+
 The workshop polls `/api/work`, runs each turn with the Binas hooks pointed at that floor, posts progress, questions and the shift report back, pushes and deploys from the host. Sessions never see the API key, the Vercel token, the GitHub token, the database or the session secret. Before anyone other than the owner gets a login, run with `--sandbox docker` so a stranger's prompt cannot reach the host.
+
+Questions from the floor are product questions only, in plain words, with 2 to 4 options and the recommended one first. Anything the machine itself refuses (a denied write, a missing tool) ends the turn with a `binas-blocked` block instead: the user reads one plain line, the owner gets the technical detail in the terminal and the thread. A workshop stopped mid-turn marks that turn as interrupted on its next start, so a project never stays stuck on "being built".
 
 ## The workshop (the factory)
 

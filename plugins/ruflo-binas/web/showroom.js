@@ -4,7 +4,8 @@
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const money = (n) => '$' + Number(n || 0).toFixed(2);
 const when = (ms) => { const d = new Date(Number(ms)); return isNaN(d) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); };
-const STATUS = { new: 'opening', queued: 'queued', approval: 'in the owner’s tray', running: 'on the floor', blocked: 'needs you', idle: 'idle', failed: 'failed', closed: 'closed' };
+const STATUS = { new: 'opening', queued: 'in line', approval: 'waiting for the owner’s OK', running: 'being built', blocked: 'needs your answer', idle: 'ready', failed: 'stopped', closed: 'closed' };
+const TURN = { queued: 'in line', approval: 'waiting for the owner’s OK', running: 'being built', blocked: 'waiting for your answer', done: 'done', failed: 'stopped', rejected: 'not run', open: 'open' };
 const api = async (method, path, body) => { const r = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' }); const j = await r.json().catch(() => ({})); return { ok: r.ok, status: r.status, ...j }; };
 const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
 const btn = (label, onclick, cls) => { const b = el('button', cls, label); b.type = 'button'; b.onclick = onclick; return b; };
@@ -29,7 +30,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
   signOut.onclick = async () => { await api('DELETE', '/api/login'); S.user = null; S.floor = null; S.project = null; show(); say('signed out'); if (onUser) onUser(null); };
   async function setUser(u) {
     S.user = u; S.floor = u ? u.floor : null; S.project = null; S.sig = {}; show(); if (onUser) onUser(u); if (onFloor && u) onFloor(S.floor);
-    say(u ? `${u.display} · floor ${u.floor}${u.role === 'owner' ? ' · owner' : u.allowanceUsd !== null ? ` · ${money(u.allowanceUsd)} a month` : ''}` : 'sign in to use the floor');
+    say(u ? `${u.display} · floor ${u.floor}${u.role === 'owner' ? ' · owner' : ''}` : 'sign in to use the floor');
     await refresh();
   }
   function show() {
@@ -46,8 +47,9 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     const grid = el('div', 'floorgrid');
     for (const f of S.floors) {
       const c = btn('', () => { S.floor = f.floor; S.project = null; S.sig = {}; if (onFloor) onFloor(f.floor); refresh(); }, 'floorcard' + (f.floor === S.floor ? ' on' : '') + (f.active ? ' live' : ''));
-      c.append(el('span', 'fname', f.user.display), el('span', 'fmeta mono', `${f.floor} · ${f.projects} proj · ${f.active ? 'working' : 'quiet'}`), el('span', 'fuse mono', f.allowanceUsd === null ? `${money(f.usedUsd)} · unlimited` : `${money(f.usedUsd)} of ${money(f.allowanceUsd)}`));
-      if (f.approvals) c.append(el('span', 'fbadge', `${f.approvals} waiting`));
+      c.append(el('span', 'fname', f.user.display), el('span', 'fmeta mono', `${f.floor} · ${f.projects} proj · ${f.active ? 'building' : 'quiet'}`), el('span', 'fuse mono', f.allowanceUsd === null ? `${money(f.usedUsd)} · unlimited` : `${money(f.usedUsd)} of ${money(f.allowanceUsd)}`));
+      if (f.approvals) c.append(el('span', 'fbadge', `${f.approvals} waiting for you`));
+      if (f.snags) c.append(el('span', 'fbadge', `${f.snags} snag${f.snags === 1 ? '' : 's'}`));
       grid.appendChild(c);
     }
     box.appendChild(grid);
@@ -73,7 +75,7 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     if (!S.projects.length) box.appendChild(el('div', 'none', 'none yet. Open one below: say what it is, who it is for, what done looks like.'));
     for (const p of S.projects) {
       const row = btn('', () => { S.project = p; S.turns = []; delete S.sig.thread; refresh(); }, 'projrow st-' + p.status + (S.project && S.project.id === p.id ? ' on' : ''));
-      row.append(el('span', 'ptitle', p.title), el('span', 'pstate', STATUS[p.status] || p.status), el('span', 'pmeta mono', `${p.turns} turn${p.turns === 1 ? '' : 's'} · ${money(p.costUsd)}${owner() && !S.floor ? ' · ' + p.floor : ''}`));
+      row.append(el('span', 'ptitle', p.title), el('span', 'pstate', STATUS[p.status] || p.status), el('span', 'pmeta mono', `${p.turns} round${p.turns === 1 ? '' : 's'}${owner() ? ' · ' + money(p.costUsd) : ''}${owner() && !S.floor ? ' · ' + p.floor : ''}`));
       if (p.latest && p.latest.text) row.append(el('span', 'plast', (p.latest.author === 'binas' ? 'binas: ' : '') + p.latest.text.slice(0, 90)));
       box.appendChild(row);
     }
@@ -94,25 +96,25 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     const head = el('div', 'thead');
     const links = [p.previewUrl ? `<a href="${esc(p.previewUrl)}" target="_blank" rel="noopener">open the preview</a>` : '', p.repo ? `<a href="${esc(p.repo)}" target="_blank" rel="noopener">code</a>` : ''].filter(Boolean).join(' · ');
     head.innerHTML = `<div class="ttitle"></div><div class="tstate mono"></div>${links ? `<div class="tlinks">${links}</div>` : ''}`;
-    head.querySelector('.ttitle').textContent = p.title; head.querySelector('.tstate').textContent = `${STATUS[p.status] || p.status} · ${p.kind} · ${money(p.costUsd)} so far`;
+    head.querySelector('.ttitle').textContent = p.title; head.querySelector('.tstate').textContent = `${STATUS[p.status] || p.status}${owner() ? ' · ' + money(p.costUsd) + ' so far' : ''}`;
     const acts = el('div', 'back'); acts.append(btn('All projects', () => { S.project = null; delete S.sig.projects; show(); }, 'quiet'), btn('Close', () => closeProject(p), 'quiet')); head.appendChild(acts);
     box.appendChild(head);
     const list = el('div', 'msgs');
     for (const t of S.turns) {
       const m = el('div', `msg k-${t.kind}${t.author === 'binas' ? ' binas' : ' mine'}${t.status === 'approval' ? ' waiting' : ''}`);
-      m.append(el('span', 'who mono', t.author === 'binas' ? (t.kind === 'ask' ? 'the floor asks' : t.kind === 'report' ? 'shift report' : 'binas') : t.author), el('span', 'at mono', when(t.createdAt)));
+      m.append(el('span', 'who mono', t.author === 'binas' ? (t.kind === 'ask' ? 'the floor asks' : t.kind === 'report' ? 'what got built' : 'the floor') : t.author), el('span', 'at mono', when(t.createdAt)));
       m.appendChild(el('div', 'txt', t.text));
       if (t.kind === 'report' && t.options && t.options.length) { const ul = el('ul', 'changes'); t.options.forEach((c) => ul.appendChild(el('li', '', c))); m.appendChild(ul); }
-      if (t.note && t.kind !== 'answer') m.appendChild(el('div', 'note', t.note));
+      if (t.note && t.kind !== 'answer' && (owner() || !/^detail: /.test(t.note))) m.appendChild(el('div', 'note', t.note));
       if (t.kind === 'report' && t.links && (t.links.preview || t.links.remote)) { const d = el('div', 'tlinks'); d.innerHTML = [t.links.preview ? `<a href="${esc(t.links.preview)}" target="_blank" rel="noopener">open the preview</a>` : '', t.links.remote ? `<a href="${esc(t.links.remote)}" target="_blank" rel="noopener">code</a>` : ''].filter(Boolean).join(' · '); m.appendChild(d); }
-      if (['request', 'answer'].includes(t.kind)) m.appendChild(el('div', 'tstatus mono', `${t.status}${t.budgetUsd ? ' · cap ' + money(t.budgetUsd) : ''}${t.costUsd !== null && t.costUsd !== undefined ? ' · ' + money(t.costUsd) : ''}${t.note && t.status === 'running' ? ' · ' + t.note : ''}`));
+      if (['request', 'answer'].includes(t.kind)) m.appendChild(el('div', 'tstatus mono', `${TURN[t.status] || t.status}${owner() && t.budgetUsd ? ' · cap ' + money(t.budgetUsd) : ''}${owner() && t.costUsd !== null && t.costUsd !== undefined ? ' · ' + money(t.costUsd) : ''}${t.note && t.status === 'running' ? ' · ' + t.note : ''}`));
       list.appendChild(m);
     }
     box.appendChild(list);
     const ask = openAsk(S.turns);
-    if (ask && ask.options.length) { const opts = el('div', 'jopts'); ask.options.forEach((o) => opts.appendChild(btn(o, () => send(o)))); box.appendChild(opts); }
+    if (ask && ask.options.length) { const opts = el('div', 'jopts'); ask.options.forEach((o, i) => { const b = btn(o, () => send(o)); if (i === 0 && ask.links && ask.links.recommended) b.appendChild(el('span', 'rec', 'recommended')); opts.appendChild(b); }); box.appendChild(opts); }
     const open = S.turns.find((t) => ['request', 'answer'].includes(t.kind) && ['queued', 'running', 'approval'].includes(t.status));
-    const form = el('form', 'composer'); const ta = el('textarea'); ta.rows = 2; ta.maxLength = 8000; ta.placeholder = ask ? 'or answer in your own words' : open ? `turn ${open.n} is ${open.status === 'approval' ? 'in the owner’s tray' : open.status} · one message at a time, the next one goes after it finishes` : 'tell the floor what to change or add next'; ta.setAttribute('aria-label', 'Message');
+    const form = el('form', 'composer'); const ta = el('textarea'); ta.rows = 2; ta.maxLength = 8000; ta.placeholder = ask ? 'or answer in your own words' : open ? `${open.status === 'approval' ? 'waiting for the owner’s OK' : 'the floor is still building'} · one message at a time` : 'tell the floor what to change or add next'; ta.setAttribute('aria-label', 'Message');
     const sendB = el('button', '', ask ? 'Answer' : 'Send'); sendB.type = 'submit'; sendB.disabled = !!open && !ask;
     form.append(ta, sendB); form.addEventListener('submit', (e) => { e.preventDefault(); const v = ta.value.trim(); if (v) send(v); });
     ta.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') form.requestSubmit(); });
@@ -137,9 +139,10 @@ export function createShowroom({ root, status, onFloor, onUser }) {
     try {
       if (!S.user) { const me = await api('GET', '/api/login'); if (me.ok) { S.user = me.user; S.floor = me.user.floor; show(); if (onUser) onUser(me.user); if (onFloor) onFloor(S.floor); say(`${me.user.display} · floor ${me.user.floor}`); } else { if (me.status === 503) say(me.error || 'showroom not configured'); show(); return; } }
       const q = owner() && S.floor ? `?floor=${encodeURIComponent(S.floor)}` : '';
-      const [pr, fl, ap] = await Promise.all([api('GET', '/api/projects' + q), owner() ? api('GET', '/api/floors') : null, owner() ? api('GET', '/api/approvals') : null]);
+      const [pr, fl, ap] = await Promise.all([api('GET', '/api/projects' + q), api('GET', '/api/floors'), owner() ? api('GET', '/api/approvals') : null]);
       if (pr.status === 401) { S.user = null; show(); say('session ended · sign in again'); return; }
       S.projects = pr.projects || []; if (fl && fl.ok) S.floors = fl.floors || []; if (ap && ap.ok) S.approvals = ap.approvals || [];
+      if (!owner() && S.floors[0] && S.floors[0].allowanceUsd !== null) say(`${S.user.display} · ${money(Math.max(0, S.floors[0].allowanceUsd - S.floors[0].usedUsd))} of building left this month`);
       if (S.project) { const t = await api('GET', `/api/turns?project=${encodeURIComponent(S.project.id)}`); if (t.ok) { S.project = t.project; S.turns = t.turns || []; } else S.project = null; }
       renderFloors(); renderTray(); renderProjects(); renderThread();
     } catch { say('showroom unreachable · retrying'); }

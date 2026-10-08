@@ -56,8 +56,8 @@ export async function projects(ctx) {
   if (method === 'DELETE') {
     // closing a project: nothing is deleted; its open work is withdrawn so the workshop never picks it up
     const p = await visibleProject(ctx, query.project); if (!p) return reply(404, { error: 'no such project' });
-    if (p.status === 'running') return reply(409, { error: 'the floor is working on it; wait for the turn to finish' });
-    const open = await db.openWork(sql, p.id); if (open) await db.updateTurn(sql, open.id, { status: 'rejected' }, now);
+    if (p.status === 'running' && !isOwner(user)) return reply(409, { error: 'the floor is working on it; wait for the turn to finish' });
+    const open = await db.openWork(sql, p.id); if (open) await db.updateTurn(sql, open.id, { status: ['running', 'blocked'].includes(open.status) ? 'failed' : 'rejected' }, now);
     await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: (open ? open.n : p.turns) + 1, author: user.username, kind: 'note', text: 'Project closed.', status: 'done' }, now);
     await db.updateProject(sql, p.id, { status: 'closed' }, now);
     return reply(200, { project: await db.getProject(sql, p.id) });
@@ -155,7 +155,7 @@ export async function work(ctx) {
   if (status === 'running') { if (t.status !== 'queued' && t.status !== 'running') return reply(409, { error: `turn is ${t.status}` }); await db.updateTurn(sql, t.id, patch, now); await db.updateProject(sql, p.id, { status: 'running', sessionId: body.sessionId || undefined, repo: body.repo || undefined, branch: body.branch || undefined }, now); }
   else if (status === 'blocked') {
     const q = body.question || {}; await db.updateTurn(sql, t.id, patch, now);
-    await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: t.n + 1, author: 'binas', kind: 'ask', text: short(q.text || q.question || 'needs a decision', 400), options: Array.isArray(q.options) ? q.options.slice(0, 6).map((o) => short(o, 80)) : [], note: short(q.context, 300), status: 'open' }, now);
+    await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: t.n + 1, author: 'binas', kind: 'ask', text: short(q.text || q.question || 'needs a decision', 400), options: Array.isArray(q.options) ? q.options.slice(0, 6).map((o) => short(o, 80)) : [], note: short(q.context, 300), links: { recommended: !!q.recommended }, status: 'open' }, now);
     await db.updateProject(sql, p.id, { status: 'blocked', sessionId: body.sessionId || undefined }, now);
   } else if (status === 'done') {
     const r = body.report || {}; await db.updateTurn(sql, t.id, { ...patch, links: body.links || {} }, now);
@@ -163,7 +163,8 @@ export async function work(ctx) {
     await db.updateProject(sql, p.id, { status: 'idle', sessionId: body.sessionId || undefined, repo: body.repo || (body.links && body.links.remote) || undefined, previewUrl: body.links && body.links.preview ? body.links.preview : undefined, bumpTurns: true, addCost: costUsd || 0 }, now);
   } else if (status === 'failed') {
     await db.updateTurn(sql, t.id, patch, now);
-    await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: t.n + 1, author: 'binas', kind: 'note', text: 'The turn failed: ' + short(body.error || 'no detail', 400), status: 'done' }, now);
+    // the user reads one plain line; the technical detail travels in `note`, which the page shows only to the owner
+    await db.insertTurn(sql, { projectId: p.id, floor: p.floor, n: t.n + 1, author: 'binas', kind: 'note', text: short(body.plain || 'The floor hit a snag and stopped. The owner has been told.', 300), note: 'detail: ' + short(body.error || 'no detail', 400), status: 'done' }, now);
     await db.updateProject(sql, p.id, { status: 'failed', sessionId: body.sessionId || undefined, bumpTurns: true, addCost: costUsd || 0 }, now);
   } else if (status === 'progress') { await db.updateTurn(sql, t.id, { note: patch.note }, now); }
   else return reply(400, { error: 'status is running, blocked, done, failed or progress' });

@@ -70,7 +70,7 @@ test('a job runs end to end on the fake claude: asks, waits, resumes, ships as a
     const kinds = readEvents(root).map((e) => e.kind);
     assert.deepEqual(kinds, ['join', 'arrive', 'start', 'block', 'unblock', 'start', 'done', 'ship']);
     assert.ok(readEvents(root).every((e) => e.agent === jobAgentId(job) || e.kind === 'arrive'));
-    assert.ok(seen.some((l) => /needs you/.test(l)) && seen.some((l) => /no git remote/.test(l)));
+    assert.ok(seen.some((l) => /needs an answer/.test(l)) && seen.some((l) => /no git remote/.test(l)));
     assert.equal(await runner.tick(), null);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

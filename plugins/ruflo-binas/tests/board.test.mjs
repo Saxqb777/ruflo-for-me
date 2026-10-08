@@ -5,7 +5,8 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createBoard, jobFromWork } from '../src/factory/board.mjs';
-import { createRunner, childEnv } from '../src/factory/runner.mjs';
+import { createRunner, childEnv, defaultRoot, insidePlugin, PLUGIN_ROOT, PLUGIN_ROOT_ERROR, MACHINE_RE, SNAG } from '../src/factory/runner.mjs';
+import { saveJob } from '../src/factory/jobs.mjs';
 import { previewDeploy } from '../src/factory/preview.mjs';
 import { shipJob } from '../src/factory/ship.mjs';
 import { coordinatorPrompt, DESIGN_RULES } from '../src/factory/prompt.mjs';
@@ -79,7 +80,7 @@ test('a cloud turn runs end to end: pulled, asked, answered on the board, resume
     assert.equal(first.id, 'turn_10'); assert.equal(first.state, 'blocked'); assert.equal(first.cloud.projectId, 'prj_x');
     assert.ok(existsSync(join(root, 'projects', 't1', 'tiny-app', 'CLAUDE.md')));
     assert.deepEqual(cloud.updates.map((u) => u.status), ['running', 'progress', 'blocked']);
-    assert.equal(cloud.updates[2].question.text, 'Dark mode by default?'); assert.equal(cloud.updates[2].sessionId, 'sess_fake_1'); assert.equal(cloud.updates[0].branch, 'main');
+    assert.equal(cloud.updates[2].question.text, 'Dark mode by default?'); assert.equal(cloud.updates[2].question.recommended, true); assert.equal(cloud.updates[2].sessionId, 'sess_fake_1'); assert.equal(cloud.updates[0].branch, 'main');
     cloud.queue = []; assert.equal(await runner.tick(), null, 'a blocked turn is not re-pulled');
     cloud.queue = [{ turn: { id: 11, n: 3, kind: 'answer', text: 'yes', budgetUsd: 2, note: 'Dark mode by default?' }, project: { ...PROJECT, sessionId: 'sess_fake_1', status: 'queued' } }];
     const second = await runner.tick();
@@ -96,17 +97,22 @@ test('a cloud turn runs end to end: pulled, asked, answered on the board, resume
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('preview and ship are honest without tokens and parse the URL with them; a new repo is created when the owner is set', () => {
+test('preview and ship are honest without tokens and parse the URL with them; a new repo is created when the owner is set', async () => {
   const okExec = (cmd, args) => ({ ok: true, out: cmd === 'npx' ? 'Production: https://tiny-app-abc.vercel.app [1s]' : cmd === 'git' && args[0] === 'remote' ? 'git@github.com:sax/t1-tiny-app.git' : cmd === 'git' && args[0] === 'rev-parse' ? 'abc123' : '', err: '', status: 0 });
+  const vercel = []; const fetchImpl = async (url, init = {}) => { vercel.push({ url, method: init.method || 'GET' }); if (!init.method && url.includes('/v9/projects/')) return { ok: false, status: 404, json: async () => ({ error: { code: 'not_found' } }) }; return { ok: true, status: 200, json: async () => ({ id: 'prj_new', accountId: 'acct_1' }) }; };
   const root = tmp();
   try {
     const job = { title: 'T', kind: 'web', workdir: root, branch: 'main', ship: 'branch', project: { slug: 'tiny-app' }, cloud: { floor: 't1' } };
-    assert.equal(previewDeploy(job, { exec: okExec, env: {} }).url, null);
-    assert.equal(previewDeploy({ ...job, kind: 'cli' }, { exec: okExec, env: { VERCEL_TOKEN: 'v' } }).notes[0], 'no screen, no preview');
-    assert.match(previewDeploy(job, { exec: okExec, env: { VERCEL_TOKEN: 'v' } }).notes[0], /nothing deployable/);
+    assert.equal((await previewDeploy(job, { exec: okExec, env: {}, fetchImpl })).url, null);
+    assert.equal((await previewDeploy({ ...job, kind: 'cli' }, { exec: okExec, env: { VERCEL_TOKEN: 'v' }, fetchImpl })).notes[0], 'no screen, no preview');
+    assert.match((await previewDeploy(job, { exec: okExec, env: { VERCEL_TOKEN: 'v' }, fetchImpl })).notes[0], /nothing deployable/);
     writeFileSync(join(root, 'index.html'), '<!doctype html>');
-    const pv = previewDeploy(job, { exec: okExec, env: { VERCEL_TOKEN: 'v' } }); assert.equal(pv.url, 'https://tiny-app-abc.vercel.app');
-    assert.match(previewDeploy(job, { exec: () => ({ ok: false, out: '', err: 'Error: not logged in', status: 1 }), env: { VERCEL_TOKEN: 'v' } }).notes[0], /preview deploy failed/);
+    const pv = await previewDeploy(job, { exec: okExec, env: { VERCEL_TOKEN: 'v', VERCEL_TEAM_ID: 'team_1' }, fetchImpl }); assert.equal(pv.url, 'https://tiny-app-abc.vercel.app');
+    assert.deepEqual(vercel.map((v) => v.method + ' ' + v.url), ['GET https://api.vercel.com/v9/projects/binas-t1-tiny-app?teamId=team_1', 'POST https://api.vercel.com/v10/projects?teamId=team_1']);
+    assert.deepEqual(JSON.parse(readFileSync(join(root, '.vercel', 'project.json'), 'utf8')), { projectId: 'prj_new', orgId: 'team_1' });
+    assert.ok(pv.notes[0].includes('binas-t1-tiny-app'));
+    const down = await previewDeploy(job, { exec: okExec, env: { VERCEL_TOKEN: 'v' }, fetchImpl: async () => { throw new Error('offline'); } }); assert.equal(down.url, 'https://tiny-app-abc.vercel.app'); assert.match(down.notes[0], /could not pin/);
+    assert.match((await previewDeploy(job, { exec: () => ({ ok: false, out: '', err: 'Error: not logged in', status: 1 }), env: { VERCEL_TOKEN: 'v' }, fetchImpl })).notes.pop(), /preview deploy failed/);
     let remoteKnown = false; const calls = [];
     const exec = (cmd, args) => { calls.push(cmd + ' ' + args.join(' ')); if (cmd === 'git' && args[0] === 'remote') return remoteKnown ? okExec(cmd, args) : { ok: false, out: '', err: 'no such remote', status: 2 }; if (cmd === 'gh' && args[1] === 'create') { remoteKnown = true; return { ok: true, out: 'https://github.com/sax/t1-tiny-app', err: '', status: 0 }; } return okExec(cmd, args); };
     const s = shipJob(job, { exec, env: { BINAS_GITHUB_OWNER: 'sax' } });
@@ -114,5 +120,39 @@ test('preview and ship are honest without tokens and parse the URL with them; a 
     assert.ok(s.notes.includes('pushed main'));
     const noOwner = shipJob(job, { exec: (cmd, args) => (cmd === 'git' && args[0] === 'remote' ? { ok: false, out: '', err: '', status: 2 } : okExec(cmd, args)), env: {} });
     assert.ok(noOwner.notes.some((n) => /no git remote/.test(n)));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('projects never live inside the plugin: the default root moves to ~/binas and the runner refuses otherwise', () => {
+  assert.equal(defaultRoot(join(PLUGIN_ROOT, 'anything'), '/home/me', {}), join('/home/me', 'binas'));
+  assert.equal(defaultRoot(PLUGIN_ROOT, '/home/me', {}), join('/home/me', 'binas'));
+  assert.equal(defaultRoot('/work/here', '/home/me', {}), '/work/here');
+  assert.equal(defaultRoot(PLUGIN_ROOT, '/home/me', { BINAS_HOME: '/srv/binas' }), '/srv/binas');
+  assert.ok(insidePlugin(join(PLUGIN_ROOT, 'projects', 'x')) && !insidePlugin('/tmp/x') && !insidePlugin(PLUGIN_ROOT + '-sibling'));
+  assert.throws(() => createRunner({ root: join(PLUGIN_ROOT, 'projects') }), new RegExp(PLUGIN_ROOT_ERROR.slice(0, 30)));
+  assert.ok(MACHINE_RE.test('File writes are denied in this session') && MACHINE_RE.test('blocked as sensitive file') && !MACHINE_RE.test('Should the game have two players?'));
+});
+
+test('machine trouble never reaches a user as a question: a blocked block, a machine-flavoured ask, and a stopped workshop all become snags', async () => {
+  const root = tmp();
+  try {
+    for (const [mode, plainRe, errorRe] of [['blocked', /could not save any files/, /sensitive file/], ['machine', /hit a snag/, /machine question.*denied/]]) {
+      const cloud = fakeCloud(); const board = createBoard({ url: 'https://binas.example', key: 'k', fetchImpl: cloud.fetch });
+      cloud.queue = [{ turn: { id: mode === 'blocked' ? 20 : 21, n: 1, kind: 'request', text: 'x', budgetUsd: 1 }, project: { ...PROJECT, id: 'prj_' + mode, slug: 'p-' + mode } }];
+      const runner = createRunner({ root, claude: { bin: process.execPath, prefixArgs: [FAKE] }, board, env: { PATH: process.env.PATH, FAKE_CLAUDE_MODE: mode }, preview: () => ({ url: null, notes: [] }) });
+      const j = await runner.tick();
+      assert.equal(j.state, 'failed', mode); assert.equal(j.question, null, mode);
+      const failed = cloud.updates.find((u) => u.status === 'failed'); assert.match(failed.plain, plainRe, mode); assert.match(failed.error, errorRe, mode);
+      assert.ok(!cloud.updates.some((u) => u.status === 'blocked'), mode + ': no question reached the board');
+    }
+    const cloud = fakeCloud(); const board = createBoard({ url: 'https://binas.example', key: 'k', fetchImpl: cloud.fetch });
+    cloud.queue = [{ turn: { id: 22, n: 1, kind: 'request', text: 'x', budgetUsd: 1 }, project: { ...PROJECT, id: 'prj_noopt', slug: 'p-noopt' } }];
+    const runner = createRunner({ root, claude: { bin: process.execPath, prefixArgs: [FAKE] }, board, env: { PATH: process.env.PATH, FAKE_CLAUDE_MODE: 'no-options' }, preview: () => ({ url: null, notes: [] }) });
+    const asked = await runner.tick(); assert.equal(asked.state, 'blocked'); assert.deepEqual(asked.question.options, ['Yes, go ahead']); assert.equal(asked.question.recommended, false);
+    const stale = saveJob(root, { ...jobFromWork({ turn: { id: 23, n: 1, kind: 'request', text: 'x', budgetUsd: 1 }, project: { ...PROJECT, id: 'prj_stale', slug: 'p-stale' } }, root), state: 'running' });
+    const cloud2 = fakeCloud(); const runner2 = createRunner({ root, claude: { bin: process.execPath, prefixArgs: [FAKE] }, board: createBoard({ url: 'https://binas.example', key: 'k', fetchImpl: cloud2.fetch }), env: { PATH: process.env.PATH }, preview: () => ({ url: null, notes: [] }) });
+    assert.equal(await runner2.tick(), null, 'nothing queued, but the sweep ran');
+    const swept = cloud2.updates.find((u) => u.turn === 23); assert.equal(swept.status, 'failed'); assert.match(swept.plain, /interrupted/); assert.equal(SNAG.includes('snag'), true);
+    void stale;
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

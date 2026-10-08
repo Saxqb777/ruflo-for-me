@@ -3,6 +3,7 @@
 // blocks the runner understands: `binas-ask` parks the job on a question; `binas-done` is the shift report.
 export const ASK_FENCE = 'binas-ask';
 export const DONE_FENCE = 'binas-done';
+export const BLOCKED_FENCE = 'binas-blocked';
 
 /** The no-slop rules. They go into DESIGN.md of every project with a screen and into the design review. */
 export const DESIGN_RULES = [
@@ -21,7 +22,7 @@ const pipeline = (web) => [
   `Use the Agent tool to spawn named teammates, in this order, and wait for each before the next. Give each a precise task and tell it what to hand back. You integrate their results.`,
   `1. "researcher": understand the request and the code; list unknowns and the smallest thing that satisfies the brief.`,
   web ? `2. "designer": write DESIGN.md: the product's one accent colour, the type pair and scale, spacing, the component list, copy voice, the three states for every list, and this banned list verbatim: ${DESIGN_RULES.join(' ')} No code yet.` : `2. "designer" is skipped: nothing here has a screen. Write a short INTERFACE.md instead (commands, inputs, outputs, errors).`,
-  `3. "architect": the file plan and the data shape; keep files under 500 lines; pick the smallest stack that does the job (static HTML/CSS/JS for sites, Node for services), deployable to Vercel with no configuration.`,
+  `3. "architect": the file plan and the data shape; keep files under 500 lines; pick the smallest stack that does the job (static HTML/CSS/JS for sites, Node for services). ${web ? 'A site must open from index.html at the repository root with no build step; if a build is unavoidable, package.json needs a build script that writes to dist/. The owner\'s machine deploys it to Vercel the moment you finish, so done means it runs.' : 'It must run with one documented command.'}`,
   `4. "coder": implement exactly the plan${web ? ', following DESIGN.md to the letter' : ''}; tests first for anything with logic.`,
   `5. "tester": write and run tests; everything must pass before the next step.`,
   web ? `6. "design-review": run the app, take screenshots at 375px and 1440px (Playwright if it is installed, otherwise open the HTML and describe what is on screen honestly), check every rule in DESIGN.md and the banned list, and fix what fails. Repeat until it passes. Save screenshots under docs/screens/.` : `6. (no screen to review)`,
@@ -35,9 +36,11 @@ const rules = (job) => [
 ].join('\n');
 
 const asks = () => [
-  `## When you need the owner`,
-  `If a decision is genuinely the owner's (scope, money, a tradeoff that changes the product, anything outward-facing), stop and end your reply with exactly one block like this and nothing after it:`,
-  '```' + ASK_FENCE, JSON.stringify({ question: 'one clear question', options: ['option A', 'option B'], context: 'one line of why' }), '```',
+  `## When you need the person who asked for this`,
+  `Only for product decisions: scope, look and feel, a tradeoff that changes what people get. They have never coded. Write one short sentence in plain words: no file names, no tool names, no jargon, no money. Give 2 to 4 options, your recommendation first. Then stop and end your reply with exactly one block like this and nothing after it:`,
+  '```' + ASK_FENCE, JSON.stringify({ question: 'Should people play against the computer, or two on one keyboard?', options: ['Against the computer', 'Two on one keyboard', 'Both'], context: 'one line of why, still in plain words' }), '```',
+  `Never ask about the machine. If the machine itself stops you (a refused write, a missing tool, a permission you do not have, a command that cannot run), do not ask and do not pretend it worked. End with exactly one block like this and nothing after it:`,
+  '```' + BLOCKED_FENCE, JSON.stringify({ reason: 'one plain sentence for the person waiting', detail: 'the exact technical detail for the owner' }), '```',
 ].join('\n');
 
 const done = (job) => [
